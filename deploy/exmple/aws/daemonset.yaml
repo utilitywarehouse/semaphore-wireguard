@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: &name wiresteward
+  labels:
+    app: *name
+spec:
+  selector:
+    matchLabels:
+      app: *name
+  template:
+    metadata:
+      labels:
+        app: *name
+    spec:
+      serviceAccountName: wiresteward-local
+      hostNetwork: true
+      containers:
+        - name: wiresteward
+          image: quay.io/utilitywarehouse/kube-wiresteward:test
+          imagePullPolicy: Always
+          env:
+            - name: WS_REMOTE_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gcp-kube-token
+                  key: token
+            - name: WS_REMOTE_POD_SUBNET
+              value: "10.4.0.0/16"
+            - name: WS_REMOTE_API_URL
+              value: 'https://lb.master.k8s.exp-1.gcp.uw.systems'
+            - name: WS_REMOTE_CA_URL
+              value: 'https://kube-ca-cert.exp-1.gcp.uw.systems'
+            - name: WS_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: WS_WG_DEVICE_NAME
+              value: 'wireguard.gcp'
+            - name: WS_WG_LISTEN_PORT
+              value: "51821"
+          ports:
+            - name: readiness-port
+              containerPort: 51880
+          volumeMounts:
+            - mountPath: /var/lib/wiresteward
+              name: var-lib-wiresteward
+          securityContext:
+            capabilities:
+              add:
+                - 'NET_ADMIN'
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: readiness-port
+            periodSeconds: 10
+            failureThreshold: 1
+      volumes:
+        - name: var-lib-wiresteward
+          hostPath:
+            path: /var/lib/wiresteward
