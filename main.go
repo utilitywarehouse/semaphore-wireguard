@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -85,7 +84,7 @@ func main() {
 		usage()
 	}
 	if *flagRemoteSATokenPath != "" {
-		data, err := ioutil.ReadFile(*flagRemoteSATokenPath)
+		data, err := os.ReadFile(*flagRemoteSATokenPath)
 		if err != nil {
 			fmt.Printf("Cannot read file: %s", *flagRemoteSATokenPath)
 			os.Exit(1)
