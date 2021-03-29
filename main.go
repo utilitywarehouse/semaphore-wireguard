@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -18,8 +17,8 @@ import (
 )
 
 const (
-	annotationWgPublicKey = "wiresteward.uw.io/pubKey"
-	annotationWgEndpoint  = "wiresteward.uw.io/endpoint"
+	annotationWGPublicKey = "wiresteward.uw.io/pubKey"
+	annotationWGEndpoint  = "wiresteward.uw.io/endpoint"
 )
 
 var (
@@ -29,11 +28,11 @@ var (
 	flagRemoteAPIURL         = flag.String("remote-api-url", getEnv("WS_REMOTE_API_URL", ""), "Remote Kubernetes API server URL")
 	flagRemoteCAURL          = flag.String("remote-ca-url", getEnv("WS_REMOTE_CA_URL", ""), "Remote Kubernetes CA certificate URL")
 	flagRemoteSATokenPath    = flag.String("remote-sa-token-path", getEnv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN_PATH", ""), "Remote Kubernetes cluster token path")
-	flagWgDeviceName         = flag.String("wg-device-name", getEnv("WS_WG_DEVICE_NAME", ""), "(Required) The name of the wireguard device to be created")
-	flagWsNodeName           = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
-	flagWgKeyPath            = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
-	flagWgDeviceMTU          = flag.String("wg-device-mtu", getEnv("WS_WG_DEVICE_MTU", "1420"), "MTU for wg device")
-	flagWgListenPort         = flag.String("wg-listen-port", getEnv("WS_WG_LISTEN_PORT", "51820"), "Wg listen port")
+	flagWGDeviceName         = flag.String("wg-device-name", getEnv("WS_WG_DEVICE_NAME", ""), "(Required) The name of the wireguard device to be created")
+	flagWSNodeName           = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
+	flagWGKeyPath            = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
+	flagWGDeviceMTU          = flag.String("wg-device-mtu", getEnv("WS_WG_DEVICE_MTU", "1420"), "MTU for wg device")
+	flagWGListenPort         = flag.String("wg-listen-port", getEnv("WS_WG_LISTEN_PORT", "51820"), "WG listen port")
 	flagRemotePodSubnet      = flag.String("remote-pod-subnet", getEnv("WS_REMOTE_POD_SUBNET", ""), "Subnet to route via the created wg interface")
 	flagResyncPeriod         = flag.Duration("resync-period", 60*time.Minute, "Node watcher cache resync period")
 
@@ -57,11 +56,11 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	flag.Parse()
 	log.InitLogger("kube-wiresteward", *flagLogLevel)
-	if *flagWgDeviceName == "" {
+	if *flagWGDeviceName == "" {
 		log.Logger.Error("Must specify a name for the wg device")
 		usage()
 	}
-	if *flagWsNodeName == "" {
+	if *flagWSNodeName == "" {
 		log.Logger.Error("Must specify the kube node that wiresteward runs on")
 		usage()
 	}
@@ -74,18 +73,18 @@ func main() {
 		log.Logger.Error("Cannot parse remote pod subnet", "err", err)
 		os.Exit(1)
 	}
-	wgDeviceMTU, err := strconv.Atoi(*flagWgDeviceMTU)
+	wgDeviceMTU, err := strconv.Atoi(*flagWGDeviceMTU)
 	if err != nil {
-		log.Logger.Error("Cannot parse mtu flag to int", "mtu", *flagWgDeviceMTU, "err", err)
+		log.Logger.Error("Cannot parse mtu flag to int", "mtu", *flagWGDeviceMTU, "err", err)
 		usage()
 	}
-	wgListenPort, err := strconv.Atoi(*flagWgListenPort)
+	wgListenPort, err := strconv.Atoi(*flagWGListenPort)
 	if err != nil {
-		log.Logger.Error("Cannot parse listen port flag to int", "listen port", *flagWgListenPort, "err", err)
+		log.Logger.Error("Cannot parse listen port flag to int", "listen port", *flagWGListenPort, "err", err)
 		usage()
 	}
 	if *flagRemoteSATokenPath != "" {
-		data, err := ioutil.ReadFile(*flagRemoteSATokenPath)
+		data, err := os.ReadFile(*flagRemoteSATokenPath)
 		if err != nil {
 			fmt.Printf("Cannot read file: %s", *flagRemoteSATokenPath)
 			os.Exit(1)
@@ -94,7 +93,7 @@ func main() {
 	}
 
 	if saToken != "" {
-		saToken = strings.TrimSuffix(saToken, "\n")
+		saToken = strings.TrimSpace(saToken)
 		if !bearerRe.Match([]byte(saToken)) {
 			log.Logger.Error(
 				"The provided token does not match regex",
@@ -130,9 +129,9 @@ func main() {
 	r := newRunner(
 		homeClient,
 		remoteClient,
-		*flagWsNodeName,
-		*flagWgDeviceName,
-		fmt.Sprintf("%s/%s.key", *flagWgKeyPath, *flagWgDeviceName),
+		*flagWSNodeName,
+		*flagWGDeviceName,
+		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, *flagWGDeviceName),
 		wgDeviceMTU,
 		wgListenPort,
 		podSubnet,

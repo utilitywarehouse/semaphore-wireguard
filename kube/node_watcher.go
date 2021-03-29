@@ -115,8 +115,5 @@ func (nw *NodeWatcher) List() ([]*v1.Node, error) {
 
 // Healthy is true when both list and watch handlers are running without errors.
 func (nw *NodeWatcher) Healthy() bool {
-	if nw.ListHealthy && nw.WatchHealthy {
-		return true
-	}
-	return false
+	return nw.ListHealthy && nw.WatchHealthy
 }
