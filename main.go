@@ -11,6 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.zx2c4.com/wireguard/wgctrl"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
 	"github.com/utilitywarehouse/kube-wiresteward/kube"
 	"github.com/utilitywarehouse/kube-wiresteward/log"
 	"k8s.io/client-go/kubernetes"
@@ -35,6 +40,7 @@ var (
 	flagWGListenPort         = flag.String("wg-listen-port", getEnv("WS_WG_LISTEN_PORT", "51820"), "WG listen port")
 	flagRemotePodSubnet      = flag.String("remote-pod-subnet", getEnv("WS_REMOTE_POD_SUBNET", ""), "Subnet to route via the created wg interface")
 	flagResyncPeriod         = flag.Duration("resync-period", 60*time.Minute, "Node watcher cache resync period")
+	flagWSListenAddr         = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
 
 	saToken  = os.Getenv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN")
 	bearerRe = regexp.MustCompile(`[A-Z|a-z0-9\-\._~\+\/]+=*`)
@@ -142,17 +148,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	sm := http.NewServeMux()
-	sm.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	wgMetricsClient, err := wgctrl.New()
+	if err != nil {
+		log.Logger.Error("Failed to start wg client for metrics collection", "err", err)
+		os.Exit(1)
+	}
+	mc := newMetricsCollector(func() (*wgtypes.Device, error) {
+		return wgMetricsClient.Device(*flagWGDeviceName)
+	})
+	prometheus.MustRegister(mc)
+
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		if r.Healthy() {
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 	})
+	server := http.Server{
+		Addr:    *flagWSListenAddr,
+		Handler: mux,
+	}
 	log.Logger.Error(
 		"Listen and Serve",
-		"err", http.ListenAndServe(":51880", sm),
+		"err", server.ListenAndServe(),
 	)
+
+	if err := wgMetricsClient.Close(); err != nil {
+		log.Logger.Error("Failed to close metrics collection wg client", "err", err)
+	}
 
 }
