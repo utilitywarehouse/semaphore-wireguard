@@ -93,7 +93,7 @@ func main() {
 	}
 
 	if saToken != "" {
-		saToken = strings.TrimSuffix(saToken, "\n")
+		saToken = strings.TrimSpace(saToken)
 		if !bearerRe.Match([]byte(saToken)) {
 			log.Logger.Error(
 				"The provided token does not match regex",
