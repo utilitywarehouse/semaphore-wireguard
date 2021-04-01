@@ -32,7 +32,7 @@ var (
 	flagWSNodeName       = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
 	flagWGKeyPath        = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
 	flagWSListenAddr     = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
-	flagWSClustersConfig = flag.String("clusters-config", getEnv("WS_CLUSTERS_ACONFIG", ""), "Path to the wiresteward clusters' json config file")
+	flagWSClustersConfig = flag.String("clusters-config", getEnv("WS_CLUSTERS_CONFIG", ""), "Path to the wiresteward clusters' json config file")
 
 	bearerRe = regexp.MustCompile(`[A-Z|a-z0-9\-\._~\+\/]+=*`)
 )
