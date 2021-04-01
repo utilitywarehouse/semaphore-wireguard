@@ -22,8 +22,11 @@ import (
 )
 
 const (
-	annotationWGPublicKey = "wiresteward.uw.io/pubKey"
-	annotationWGEndpoint  = "wiresteward.uw.io/endpoint"
+	watchAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
+	watchAnnotationWGEndpointPattern  = "wiresteward.uw.io//%sendpoint"
+	localAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
+	localAnnotationWGEndpointPattern  = "wiresteward.uw.io/%s/endpoint"
+	wgDeviceNamePattern               = "wireguard.%s"
 )
 
 var (
@@ -33,7 +36,6 @@ var (
 	flagRemoteAPIURL         = flag.String("remote-api-url", getEnv("WS_REMOTE_API_URL", ""), "Remote Kubernetes API server URL")
 	flagRemoteCAURL          = flag.String("remote-ca-url", getEnv("WS_REMOTE_CA_URL", ""), "Remote Kubernetes CA certificate URL")
 	flagRemoteSATokenPath    = flag.String("remote-sa-token-path", getEnv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN_PATH", ""), "Remote Kubernetes cluster token path")
-	flagWGDeviceName         = flag.String("wg-device-name", getEnv("WS_WG_DEVICE_NAME", ""), "(Required) The name of the wireguard device to be created")
 	flagWSNodeName           = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
 	flagWGKeyPath            = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
 	flagWGDeviceMTU          = flag.String("wg-device-mtu", getEnv("WS_WG_DEVICE_MTU", "1420"), "MTU for wg device")
@@ -41,9 +43,16 @@ var (
 	flagRemotePodSubnet      = flag.String("remote-pod-subnet", getEnv("WS_REMOTE_POD_SUBNET", ""), "Subnet to route via the created wg interface")
 	flagResyncPeriod         = flag.Duration("resync-period", 60*time.Minute, "Node watcher cache resync period")
 	flagWSListenAddr         = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
+	flagLocalClusterName     = flag.String("local-cluster-name", getEnv("WS_LOCAL_CLUSTER_NAME", ""), "Name of the local cluster which will be used when annotating local nodes.")
+	flagWatchClusterName     = flag.String("watch-cluster-name", getEnv("WS_WATCH_CLUSTER_NAME", ""), "Name of the watch cluster which will be used when annotating local nodes and creating the respective wg device.")
 
 	saToken  = os.Getenv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN")
 	bearerRe = regexp.MustCompile(`[A-Z|a-z0-9\-\._~\+\/]+=*`)
+
+	watchAnnotationWGPublicKey string
+	watchAnnotationWGEndpoint  string
+	localAnnotationWGPublicKey string
+	localAnnotationWGEndpoint  string
 )
 
 func usage() {
@@ -62,10 +71,21 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	flag.Parse()
 	log.InitLogger("kube-wiresteward", *flagLogLevel)
-	if *flagWGDeviceName == "" {
-		log.Logger.Error("Must specify a name for the wg device")
+
+	if *flagLocalClusterName == "" {
+		log.Logger.Error("Must specify a name for the local cluster")
 		usage()
 	}
+	localAnnotationWGPublicKey = fmt.Sprintf(localAnnotationWGPublicKeyPattern, *flagLocalClusterName)
+	localAnnotationWGEndpoint = fmt.Sprintf(localAnnotationWGEndpointPattern, *flagLocalClusterName)
+	if *flagWatchClusterName == "" {
+		log.Logger.Error("Must specify a name for the watched cluster")
+		usage()
+	}
+	watchAnnotationWGPublicKey = fmt.Sprintf(watchAnnotationWGPublicKeyPattern, *flagWatchClusterName)
+	watchAnnotationWGEndpoint = fmt.Sprintf(watchAnnotationWGEndpointPattern, *flagWatchClusterName)
+	wgDeviceName := fmt.Sprintf(wgDeviceNamePattern, *flagWatchClusterName)
+
 	if *flagWSNodeName == "" {
 		log.Logger.Error("Must specify the kube node that wiresteward runs on")
 		usage()
@@ -136,8 +156,8 @@ func main() {
 		homeClient,
 		remoteClient,
 		*flagWSNodeName,
-		*flagWGDeviceName,
-		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, *flagWGDeviceName),
+		wgDeviceName,
+		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, wgDeviceName),
 		wgDeviceMTU,
 		wgListenPort,
 		podSubnet,
@@ -154,7 +174,7 @@ func main() {
 		os.Exit(1)
 	}
 	mc := newMetricsCollector(func() (*wgtypes.Device, error) {
-		return wgMetricsClient.Device(*flagWGDeviceName)
+		return wgMetricsClient.Device(wgDeviceName)
 	})
 	prometheus.MustRegister(mc)
 

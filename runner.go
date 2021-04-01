@@ -135,8 +135,8 @@ func (r *Runner) patchLocalNode() error {
 		return fmt.Errorf("Could not calculate wg endpoint, node internal address not found")
 	}
 	annotations := map[string]string{
-		annotationWGPublicKey: r.device.PublicKey(),
-		annotationWGEndpoint:  wgEndpoint,
+		localAnnotationWGPublicKey: r.device.PublicKey(),
+		localAnnotationWGEndpoint:  wgEndpoint,
 	}
 	if err := kube.PatchNodeAnnotation(r.client, r.nodeName, annotations); err != nil {
 		return err
@@ -165,11 +165,11 @@ func (r *Runner) setLocalDeviceAddress() error {
 }
 
 func checkWSAnnotationsExist(annotations map[string]string) bool {
-	_, ok := annotations[annotationWGPublicKey]
+	_, ok := annotations[watchAnnotationWGPublicKey]
 	if !ok {
 		return false
 	}
-	_, ok = annotations[annotationWGEndpoint]
+	_, ok = annotations[watchAnnotationWGEndpoint]
 	if !ok {
 		return false
 	}
@@ -191,7 +191,7 @@ func (r *Runner) nodeEventHandler(eventType watch.EventType, old *v1.Node, new *
 			log.Logger.Debug("Modified node missing the needed ws annotations", "node", new.Name)
 		}
 	case watch.Deleted:
-		if _, ok := old.Annotations[annotationWGPublicKey]; ok {
+		if _, ok := old.Annotations[watchAnnotationWGPublicKey]; ok {
 			r.onPeerNodeDelete(old)
 		} else {
 			log.Logger.Debug("Deleted node missing the needed ws annotations", "node", old.Name)
@@ -221,10 +221,10 @@ func equalSlices(a, b []string) bool {
 }
 func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 	log.Logger.Debug("On peer node update", "namename", node.Name)
-	pubKey := node.Annotations[annotationWGPublicKey]
+	pubKey := node.Annotations[watchAnnotationWGPublicKey]
 	peer := Peer{
 		allowedIPs: []string{node.Spec.PodCIDR},
-		endpoint:   node.Annotations[annotationWGEndpoint],
+		endpoint:   node.Annotations[watchAnnotationWGEndpoint],
 	}
 	// Check if peer needs to be updated
 	if oldPeer, ok := r.peers[pubKey]; ok {
@@ -240,7 +240,7 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 
 func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 	log.Logger.Debug("On peer node delete", "namename", node.Name)
-	pubKey := node.Annotations[annotationWGPublicKey]
+	pubKey := node.Annotations[watchAnnotationWGPublicKey]
 	if _, ok := r.peers[pubKey]; ok {
 		delete(r.peers, pubKey)
 	}
