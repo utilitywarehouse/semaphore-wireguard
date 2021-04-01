@@ -15,12 +15,12 @@ type collector struct {
 	PeerTransmitBytes  *prometheus.Desc
 	PeerLastHandshake  *prometheus.Desc
 
-	device func() (*wgtypes.Device, error) // to allow testing
+	devices func() ([]*wgtypes.Device, error) // to allow testing
 }
 
 // NewMetricsCollector constructs a prometheus.Collector to collect metrics for
 // all present wg devices and correlate with user if possible
-func newMetricsCollector(device func() (*wgtypes.Device, error)) prometheus.Collector {
+func newMetricsCollector(devices func() ([]*wgtypes.Device, error)) prometheus.Collector {
 	// common labels for all metrics
 	labels := []string{"device", "public_key"}
 
@@ -61,7 +61,7 @@ func newMetricsCollector(device func() (*wgtypes.Device, error)) prometheus.Coll
 			labels,
 			nil,
 		),
-		device: device,
+		devices: devices,
 	}
 }
 
@@ -83,70 +83,71 @@ func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector.
 func (c *collector) Collect(ch chan<- prometheus.Metric) {
-	d, err := c.device()
+	devices, err := c.devices()
 	if err != nil {
 		log.Logger.Error("Failed to get wg device for metrics collection", "err", err)
 		ch <- prometheus.NewInvalidMetric(c.DeviceInfo, err)
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		c.DeviceInfo,
-		prometheus.GaugeValue,
-		1,
-		d.Name, d.PublicKey.String(),
-	)
-
-	for _, p := range d.Peers {
-		pub := p.PublicKey.String()
-		// Use empty string instead of special Go <nil> syntax for no endpoint.
-		var endpoint string
-		if p.Endpoint != nil {
-			endpoint = p.Endpoint.String()
-		}
-
+	for _, d := range devices {
 		ch <- prometheus.MustNewConstMetric(
-			c.PeerInfo,
+			c.DeviceInfo,
 			prometheus.GaugeValue,
 			1,
-			d.Name, pub, endpoint,
+			d.Name, d.PublicKey.String(),
 		)
 
-		for _, ip := range p.AllowedIPs {
+		for _, p := range d.Peers {
+			pub := p.PublicKey.String()
+			// Use empty string instead of special Go <nil> syntax for no endpoint.
+			var endpoint string
+			if p.Endpoint != nil {
+				endpoint = p.Endpoint.String()
+			}
+
 			ch <- prometheus.MustNewConstMetric(
-				c.PeerAllowedIPsInfo,
+				c.PeerInfo,
 				prometheus.GaugeValue,
 				1,
-				d.Name, pub, ip.String(),
+				d.Name, pub, endpoint,
+			)
+
+			for _, ip := range p.AllowedIPs {
+				ch <- prometheus.MustNewConstMetric(
+					c.PeerAllowedIPsInfo,
+					prometheus.GaugeValue,
+					1,
+					d.Name, pub, ip.String(),
+				)
+			}
+
+			ch <- prometheus.MustNewConstMetric(
+				c.PeerReceiveBytes,
+				prometheus.CounterValue,
+				float64(p.ReceiveBytes),
+				d.Name, pub,
+			)
+
+			ch <- prometheus.MustNewConstMetric(
+				c.PeerTransmitBytes,
+				prometheus.CounterValue,
+				float64(p.TransmitBytes),
+				d.Name, pub,
+			)
+
+			// Expose last handshake of 0 unless a last handshake time is set.
+			var last float64
+			if !p.LastHandshakeTime.IsZero() {
+				last = float64(p.LastHandshakeTime.Unix())
+			}
+
+			ch <- prometheus.MustNewConstMetric(
+				c.PeerLastHandshake,
+				prometheus.GaugeValue,
+				last,
+				d.Name, pub,
 			)
 		}
-
-		ch <- prometheus.MustNewConstMetric(
-			c.PeerReceiveBytes,
-			prometheus.CounterValue,
-			float64(p.ReceiveBytes),
-			d.Name, pub,
-		)
-
-		ch <- prometheus.MustNewConstMetric(
-			c.PeerTransmitBytes,
-			prometheus.CounterValue,
-			float64(p.TransmitBytes),
-			d.Name, pub,
-		)
-
-		// Expose last handshake of 0 unless a last handshake time is set.
-		var last float64
-		if !p.LastHandshakeTime.IsZero() {
-			last = float64(p.LastHandshakeTime.Unix())
-		}
-
-		ch <- prometheus.MustNewConstMetric(
-			c.PeerLastHandshake,
-			prometheus.GaugeValue,
-			last,
-			d.Name, pub,
-		)
 	}
-
 }

@@ -35,8 +35,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: WS_WG_DEVICE_NAME
-              value: 'wireguard.aws'
+            - name: WS_LOCAL_CLUSTER_NAME
+              value: 'gcp'
+            - name: WS_WATCH_CLUSTER_NAME
+              value: 'aws'
             - name: WS_WG_DEVICE_MTU
               value: "1380"
             - name: WS_WG_LISTEN_PORT

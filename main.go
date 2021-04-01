@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,27 +20,20 @@ import (
 )
 
 const (
-	annotationWGPublicKey = "wiresteward.uw.io/pubKey"
-	annotationWGEndpoint  = "wiresteward.uw.io/endpoint"
+	watchAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
+	watchAnnotationWGEndpointPattern  = "wiresteward.uw.io//%sendpoint"
+	localAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
+	localAnnotationWGEndpointPattern  = "wiresteward.uw.io/%s/endpoint"
+	wgDeviceNamePattern               = "wireguard.%s"
 )
 
 var (
-	flagKubeConfigPath       = flag.String("local-kube-config", getEnv("WS_LOCAL_KUBE_CONFIG", ""), "Path of the local kube cluster config file, if not provided the app will try to get in cluster config")
-	flagTargetKubeConfigPath = flag.String("target-kube-config", getEnv("WS_TARGET_KUBE_CONFIG", ""), "(Required) Path of the target cluster kube config file to add wg peers from")
-	flagLogLevel             = flag.String("log-level", getEnv("WS_LOG_LEVEL", "info"), "Log level")
-	flagRemoteAPIURL         = flag.String("remote-api-url", getEnv("WS_REMOTE_API_URL", ""), "Remote Kubernetes API server URL")
-	flagRemoteCAURL          = flag.String("remote-ca-url", getEnv("WS_REMOTE_CA_URL", ""), "Remote Kubernetes CA certificate URL")
-	flagRemoteSATokenPath    = flag.String("remote-sa-token-path", getEnv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN_PATH", ""), "Remote Kubernetes cluster token path")
-	flagWGDeviceName         = flag.String("wg-device-name", getEnv("WS_WG_DEVICE_NAME", ""), "(Required) The name of the wireguard device to be created")
-	flagWSNodeName           = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
-	flagWGKeyPath            = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
-	flagWGDeviceMTU          = flag.String("wg-device-mtu", getEnv("WS_WG_DEVICE_MTU", "1420"), "MTU for wg device")
-	flagWGListenPort         = flag.String("wg-listen-port", getEnv("WS_WG_LISTEN_PORT", "51820"), "WG listen port")
-	flagRemotePodSubnet      = flag.String("remote-pod-subnet", getEnv("WS_REMOTE_POD_SUBNET", ""), "Subnet to route via the created wg interface")
-	flagResyncPeriod         = flag.Duration("resync-period", 60*time.Minute, "Node watcher cache resync period")
-	flagWSListenAddr         = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
+	flagLogLevel         = flag.String("log-level", getEnv("WS_LOG_LEVEL", "info"), "Log level")
+	flagWSNodeName       = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
+	flagWGKeyPath        = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
+	flagWSListenAddr     = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
+	flagWSClustersConfig = flag.String("clusters-config", getEnv("WS_CLUSTERS_ACONFIG", ""), "Path to the wiresteward clusters' json config file")
 
-	saToken  = os.Getenv("WS_REMOTE_SERVICE_ACCOUNT_TOKEN")
 	bearerRe = regexp.MustCompile(`[A-Z|a-z0-9\-\._~\+\/]+=*`)
 )
 
@@ -62,90 +53,49 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	flag.Parse()
 	log.InitLogger("kube-wiresteward", *flagLogLevel)
-	if *flagWGDeviceName == "" {
-		log.Logger.Error("Must specify a name for the wg device")
-		usage()
-	}
+
 	if *flagWSNodeName == "" {
 		log.Logger.Error("Must specify the kube node that wiresteward runs on")
 		usage()
 	}
-	if *flagRemotePodSubnet == "" {
-		log.Logger.Error("Must specify remote cluster's pod subnet")
+	if *flagWSClustersConfig == "" {
+		log.Logger.Error("Must specify a clusters config file location")
 		usage()
 	}
-	_, podSubnet, err := net.ParseCIDR(*flagRemotePodSubnet)
+	fileContent, err := os.ReadFile(*flagWSClustersConfig)
 	if err != nil {
-		log.Logger.Error("Cannot parse remote pod subnet", "err", err)
+		log.Logger.Error("Cannot read clusters config file", "err", err)
 		os.Exit(1)
 	}
-	wgDeviceMTU, err := strconv.Atoi(*flagWGDeviceMTU)
+	config, err := parseConfig(fileContent)
 	if err != nil {
-		log.Logger.Error("Cannot parse mtu flag to int", "mtu", *flagWGDeviceMTU, "err", err)
-		usage()
-	}
-	wgListenPort, err := strconv.Atoi(*flagWGListenPort)
-	if err != nil {
-		log.Logger.Error("Cannot parse listen port flag to int", "listen port", *flagWGListenPort, "err", err)
-		usage()
-	}
-	if *flagRemoteSATokenPath != "" {
-		data, err := os.ReadFile(*flagRemoteSATokenPath)
-		if err != nil {
-			fmt.Printf("Cannot read file: %s", *flagRemoteSATokenPath)
-			os.Exit(1)
-		}
-		saToken = string(data)
+		log.Logger.Error("Cannot parse clusters config", "err", err)
+		os.Exit(1)
 	}
 
-	if saToken != "" {
-		saToken = strings.TrimSpace(saToken)
-		if !bearerRe.Match([]byte(saToken)) {
-			log.Logger.Error(
-				"The provided token does not match regex",
-				"regex", bearerRe.String)
-			os.Exit(1)
-		}
-	}
-
-	// Get a kube client to use with the watchers
-	homeClient, err := kube.ClientFromConfig(*flagKubeConfigPath)
+	homeClient, err := kube.ClientFromConfig(config.Local.KubeConfigPath)
 	if err != nil {
 		log.Logger.Error(
 			"cannot create kube client for homecluster",
 			"err", err,
 		)
-		usage()
-	}
-
-	var remoteClient *kubernetes.Clientset
-	if *flagTargetKubeConfigPath != "" {
-		remoteClient, err = kube.ClientFromConfig(*flagTargetKubeConfigPath)
-	} else {
-		remoteClient, err = kube.Client(saToken, *flagRemoteAPIURL, *flagRemoteCAURL)
-	}
-	if err != nil {
-		log.Logger.Error(
-			"cannot create kube client for remotecluster",
-			"err", err,
-		)
-		usage()
-	}
-
-	r := newRunner(
-		homeClient,
-		remoteClient,
-		*flagWSNodeName,
-		*flagWGDeviceName,
-		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, *flagWGDeviceName),
-		wgDeviceMTU,
-		wgListenPort,
-		podSubnet,
-		*flagResyncPeriod,
-	)
-	if err := r.Run(); err != nil {
-		log.Logger.Error("Failed to start runner", "err", err)
 		os.Exit(1)
+	}
+
+	var runners []*Runner
+	var wgDeviceNames []string
+	for _, rConf := range config.Remotes {
+		r, wgDeviceName, err := makeRunner(homeClient, config.Local.Name, rConf)
+		if err != nil {
+			log.Logger.Error("Failed to create runner", "err", err)
+			os.Exit(1)
+		}
+		wgDeviceNames = append(wgDeviceNames, wgDeviceName)
+		runners = append(runners, r)
+		if err := r.Run(); err != nil {
+			log.Logger.Error("Failed to start runner", "err", err)
+			os.Exit(1)
+		}
 	}
 
 	wgMetricsClient, err := wgctrl.New()
@@ -153,18 +103,84 @@ func main() {
 		log.Logger.Error("Failed to start wg client for metrics collection", "err", err)
 		os.Exit(1)
 	}
-	mc := newMetricsCollector(func() (*wgtypes.Device, error) {
-		return wgMetricsClient.Device(*flagWGDeviceName)
+	defer func() {
+		if err := wgMetricsClient.Close(); err != nil {
+			log.Logger.Error("Failed to close metrics collection wg client", "err", err)
+		}
+	}()
+
+	makeMetricsCollector(wgMetricsClient, wgDeviceNames)
+	listenAndServe(runners)
+}
+
+func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remoteClusterConfig) (*Runner, string, error) {
+	data, err := os.ReadFile(rConf.RemoteSATokenPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("Cannot read file: %s: %v", rConf.RemoteSATokenPath, err)
+	}
+	saToken := string(data)
+	if saToken != "" {
+		saToken = strings.TrimSpace(saToken)
+		if !bearerRe.Match([]byte(saToken)) {
+			return nil, "", fmt.Errorf("The provided token does not match regex: %s", bearerRe.String())
+		}
+	}
+	var remoteClient *kubernetes.Clientset
+	if rConf.KubeConfigPath != "" {
+		remoteClient, err = kube.ClientFromConfig(rConf.KubeConfigPath)
+	} else {
+		remoteClient, err = kube.Client(saToken, rConf.RemoteAPIURL, rConf.RemoteCAURL)
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot create kube client for remotecluster %v", err)
+	}
+	_, podSubnet, err := net.ParseCIDR(rConf.PodSubnet)
+	if err != nil {
+		return nil, "", fmt.Errorf("Cannot parse remote pod subnet: %s", err)
+	}
+	wgDeviceName := fmt.Sprintf(wgDeviceNamePattern, rConf.Name)
+	r := newRunner(
+		homeClient,
+		remoteClient,
+		*flagWSNodeName,
+		wgDeviceName,
+		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, wgDeviceName),
+		localName,
+		rConf.Name,
+		rConf.WGDeviceMTU,
+		rConf.WGListenPort,
+		podSubnet,
+		rConf.ResyncPeriod.Duration,
+	)
+	return r, wgDeviceName, nil
+}
+
+func makeMetricsCollector(wgMetricsClient *wgctrl.Client, wgDeviceNames []string) {
+	mc := newMetricsCollector(func() ([]*wgtypes.Device, error) {
+		var devices []*wgtypes.Device
+		for _, name := range wgDeviceNames {
+			device, err := wgMetricsClient.Device(name)
+			if err != nil {
+				return nil, err
+			}
+			devices = append(devices, device)
+		}
+		return devices, nil
 	})
 	prometheus.MustRegister(mc)
 
+}
+
+func listenAndServe(runners []*Runner) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		if r.Healthy() {
+		for _, r := range runners {
+			if !r.Healthy() {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
-		} else {
-			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 	})
 	server := http.Server{
@@ -175,9 +191,4 @@ func main() {
 		"Listen and Serve",
 		"err", server.ListenAndServe(),
 	)
-
-	if err := wgMetricsClient.Close(); err != nil {
-		log.Logger.Error("Failed to close metrics collection wg client", "err", err)
-	}
-
 }
