@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	watchAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
-	watchAnnotationWGEndpointPattern  = "wiresteward.uw.io//%sendpoint"
-	localAnnotationWGPublicKeyPattern = "wiresteward.uw.io/%s/pubKey"
-	localAnnotationWGEndpointPattern  = "wiresteward.uw.io/%s/endpoint"
+	watchAnnotationWGPublicKeyPattern = "wiresteward.%s.uw.io/pubKey"
+	watchAnnotationWGEndpointPattern  = "wiresteward.%s.uw.io/endpoint"
+	localAnnotationWGPublicKeyPattern = "wiresteward.%s.uw.io/pubKey"
+	localAnnotationWGEndpointPattern  = "wiresteward.%s.uw.io/endpoint"
 	wgDeviceNamePattern               = "wireguard.%s"
 )
 

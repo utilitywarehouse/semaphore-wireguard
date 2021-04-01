@@ -36,7 +36,7 @@ spec:
               mountPath: /etc/wiresteward/tokens/aws/
               readOnly: true
             - name: config
-              mountPath: /etc/wiresteward/config/
+              mountPath: /etc/wiresteward/
           securityContext:
             capabilities:
               add:
