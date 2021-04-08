@@ -42,7 +42,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 var (
-	defaultWatcherResyncPeriod = Duration{1 * time.Hour}
+	defaultWatcherResyncPeriod = Duration{time.Hour}
 	zeroDuration               = Duration{0}
 )
 
