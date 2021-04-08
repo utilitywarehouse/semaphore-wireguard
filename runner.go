@@ -24,6 +24,24 @@ type Peer struct {
 	endpoint   string
 }
 
+// RunnerAnnotations contains the annotations that each runner should use for
+// updating its local node and watching a remote cluster.
+type RunnerAnnotations struct {
+	watchAnnotationWGPublicKey string
+	watchAnnotationWGEndpoint  string
+	localAnnotationWGPublicKey string
+	localAnnotationWGEndpoint  string
+}
+
+func constructRunnerAnnotations(localClusterName, watchClusterName string) RunnerAnnotations {
+	return RunnerAnnotations{
+		watchAnnotationWGPublicKey: fmt.Sprintf(watchAnnotationWGPublicKeyPattern, watchClusterName),
+		watchAnnotationWGEndpoint:  fmt.Sprintf(watchAnnotationWGEndpointPattern, watchClusterName),
+		localAnnotationWGPublicKey: fmt.Sprintf(localAnnotationWGPublicKeyPattern, localClusterName),
+		localAnnotationWGEndpoint:  fmt.Sprintf(localAnnotationWGEndpointPattern, localClusterName),
+	}
+}
+
 // Runner is the main runner that keeps a watch on the remote cluster's nodes
 // and adds/removes local peers.
 type Runner struct {
@@ -34,15 +52,17 @@ type Runner struct {
 	nodeWatcher *kube.NodeWatcher
 	peers       map[string]Peer
 	canUpdate   bool // Flag to allow updating wireguard peers only after initial node watcher sync
+	annotations RunnerAnnotations
 }
 
-func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
+func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, watchClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
 	runner := &Runner{
-		nodeName:  nodeName,
-		client:    client,
-		podSubnet: podSubnet,
-		peers:     make(map[string]Peer),
-		canUpdate: false,
+		nodeName:    nodeName,
+		client:      client,
+		podSubnet:   podSubnet,
+		peers:       make(map[string]Peer),
+		canUpdate:   false,
+		annotations: constructRunnerAnnotations(localClusterName, watchClusterName),
 	}
 	runner.device = wireguard.NewDevice(wgDeviceName, wgKeyPath, wgDeviceMTU, wgListenPort)
 	nw := kube.NewNodeWatcher(
@@ -135,8 +155,8 @@ func (r *Runner) patchLocalNode() error {
 		return fmt.Errorf("Could not calculate wg endpoint, node internal address not found")
 	}
 	annotations := map[string]string{
-		annotationWGPublicKey: r.device.PublicKey(),
-		annotationWGEndpoint:  wgEndpoint,
+		r.annotations.localAnnotationWGPublicKey: r.device.PublicKey(),
+		r.annotations.localAnnotationWGEndpoint:  wgEndpoint,
 	}
 	if err := kube.PatchNodeAnnotation(r.client, r.nodeName, annotations); err != nil {
 		return err
@@ -164,12 +184,12 @@ func (r *Runner) setLocalDeviceAddress() error {
 	})
 }
 
-func checkWSAnnotationsExist(annotations map[string]string) bool {
-	_, ok := annotations[annotationWGPublicKey]
+func (r *Runner) checkWSAnnotationsExist(annotations map[string]string) bool {
+	_, ok := annotations[r.annotations.watchAnnotationWGPublicKey]
 	if !ok {
 		return false
 	}
-	_, ok = annotations[annotationWGEndpoint]
+	_, ok = annotations[r.annotations.watchAnnotationWGEndpoint]
 	if !ok {
 		return false
 	}
@@ -179,19 +199,19 @@ func checkWSAnnotationsExist(annotations map[string]string) bool {
 func (r *Runner) nodeEventHandler(eventType watch.EventType, old *v1.Node, new *v1.Node) {
 	switch eventType {
 	case watch.Added:
-		if checkWSAnnotationsExist(new.Annotations) {
+		if r.checkWSAnnotationsExist(new.Annotations) {
 			r.onPeerNodeUpdate(new)
 		} else {
 			log.Logger.Debug("Added node missing the needed ws annotations", "node", new.Name)
 		}
 	case watch.Modified:
-		if checkWSAnnotationsExist(new.Annotations) {
+		if r.checkWSAnnotationsExist(new.Annotations) {
 			r.onPeerNodeUpdate(new)
 		} else {
 			log.Logger.Debug("Modified node missing the needed ws annotations", "node", new.Name)
 		}
 	case watch.Deleted:
-		if _, ok := old.Annotations[annotationWGPublicKey]; ok {
+		if _, ok := old.Annotations[r.annotations.watchAnnotationWGPublicKey]; ok {
 			r.onPeerNodeDelete(old)
 		} else {
 			log.Logger.Debug("Deleted node missing the needed ws annotations", "node", old.Name)
@@ -221,10 +241,10 @@ func equalSlices(a, b []string) bool {
 }
 func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 	log.Logger.Debug("On peer node update", "namename", node.Name)
-	pubKey := node.Annotations[annotationWGPublicKey]
+	pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
 	peer := Peer{
 		allowedIPs: []string{node.Spec.PodCIDR},
-		endpoint:   node.Annotations[annotationWGEndpoint],
+		endpoint:   node.Annotations[r.annotations.watchAnnotationWGEndpoint],
 	}
 	// Check if peer needs to be updated
 	if oldPeer, ok := r.peers[pubKey]; ok {
@@ -240,7 +260,7 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 
 func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 	log.Logger.Debug("On peer node delete", "namename", node.Name)
-	pubKey := node.Annotations[annotationWGPublicKey]
+	pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
 	if _, ok := r.peers[pubKey]; ok {
 		delete(r.peers, pubKey)
 	}

@@ -17,34 +17,26 @@ spec:
       hostNetwork: true
       containers:
         - name: wiresteward
-          image: quay.io/utilitywarehouse/kube-wiresteward:test
+          image: quay.io/utilitywarehouse/kube-wiresteward:latest
           imagePullPolicy: Always
           env:
-            - name: WS_REMOTE_SERVICE_ACCOUNT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: gcp-kube-token
-                  key: token
-            - name: WS_REMOTE_POD_SUBNET
-              value: "10.4.0.0/16"
-            - name: WS_REMOTE_API_URL
-              value: 'https://lb.master.k8s.exp-1.gcp.uw.systems'
-            - name: WS_REMOTE_CA_URL
-              value: 'https://kube-ca-cert.exp-1.gcp.uw.systems'
             - name: WS_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: WS_WG_DEVICE_NAME
-              value: 'wireguard.gcp'
-            - name: WS_WG_LISTEN_PORT
-              value: "51821"
+            - name: WS_CLUSTERS_CONFIG
+              value: "/etc/wiresteward/config.json"
           ports:
             - name: readiness-port
-              containerPort: 51880
+              containerPort: 7773
           volumeMounts:
-            - mountPath: /var/lib/wiresteward
-              name: var-lib-wiresteward
+            - name: var-lib-wiresteward
+              mountPath: /var/lib/wiresteward
+            - name: gcp-token
+              mountPath: /etc/wiresteward/tokens/gcp/
+              readOnly: true
+            - name: config
+              mountPath: /etc/wiresteward/
           securityContext:
             capabilities:
               add:
@@ -59,3 +51,9 @@ spec:
         - name: var-lib-wiresteward
           hostPath:
             path: /var/lib/wiresteward
+        - name: gcp-token
+          secret:
+            secretName: wiresteward-gcp-token
+        - name: config
+          configMap:
+            name: wiresteward-config

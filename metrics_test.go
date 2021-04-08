@@ -20,45 +20,46 @@ func TestCollector(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		device  func() (*wgtypes.Device, error)
+		devices func() ([]*wgtypes.Device, error)
 		metrics []string
 	}{
 		{
 			name: "ok",
-			device: func() (*wgtypes.Device, error) {
-				return &wgtypes.Device{
-					Name:      "wg0",
-					PublicKey: pubDevA,
-					Peers: []wgtypes.Peer{{
-						PublicKey: pubPeerA,
-						Endpoint: &net.UDPAddr{
-							IP:   net.ParseIP("1.1.1.1"),
-							Port: 51820,
-						},
-						LastHandshakeTime: time.Unix(10, 0),
-						ReceiveBytes:      1,
-						TransmitBytes:     2,
-						AllowedIPs: []net.IPNet{
-							net.IPNet{
-								IP:   net.ParseIP("10.0.0.1"),
-								Mask: net.CIDRMask(32, 32),
+			devices: func() ([]*wgtypes.Device, error) {
+				return []*wgtypes.Device{
+					&wgtypes.Device{
+						Name:      "wg0",
+						PublicKey: pubDevA,
+						Peers: []wgtypes.Peer{{
+							PublicKey: pubPeerA,
+							Endpoint: &net.UDPAddr{
+								IP:   net.ParseIP("1.1.1.1"),
+								Port: 51820,
 							},
-							net.IPNet{
-								IP:   net.ParseIP("10.0.0.2"),
-								Mask: net.CIDRMask(32, 32),
-							},
-						}},
-						{
-							PublicKey: pubPeerB,
+							LastHandshakeTime: time.Unix(10, 0),
+							ReceiveBytes:      1,
+							TransmitBytes:     2,
 							AllowedIPs: []net.IPNet{
 								net.IPNet{
-									IP:   net.ParseIP("10.0.0.3"),
+									IP:   net.ParseIP("10.0.0.1"),
 									Mask: net.CIDRMask(32, 32),
+								},
+								net.IPNet{
+									IP:   net.ParseIP("10.0.0.2"),
+									Mask: net.CIDRMask(32, 32),
+								},
+							}},
+							{
+								PublicKey: pubPeerB,
+								AllowedIPs: []net.IPNet{
+									net.IPNet{
+										IP:   net.ParseIP("10.0.0.3"),
+										Mask: net.CIDRMask(32, 32),
+									},
 								},
 							},
 						},
-					},
-				}, nil
+					}}, nil
 			},
 			metrics: []string{
 				fmt.Sprintf(`wiresteward_wg_device_info{device="wg0",public_key="%v"} 1`, pubDevA.String()),
@@ -78,7 +79,7 @@ func TestCollector(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body := promtest.Collect(t, newMetricsCollector(tt.device))
+			body := promtest.Collect(t, newMetricsCollector(tt.devices))
 
 			if !promtest.Lint(t, body) {
 				t.Fatal("one or more promlint errors found")
