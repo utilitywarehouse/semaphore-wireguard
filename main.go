@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	watchAnnotationWGPublicKeyPattern = "wireguard.%s.uw.io/pubKey"
-	watchAnnotationWGEndpointPattern  = "wireguard.%s.uw.io/endpoint"
-	localAnnotationWGPublicKeyPattern = "wireguard.%s.uw.io/pubKey"
-	localAnnotationWGEndpointPattern  = "wireguard.%s.uw.io/endpoint"
+	watchAnnotationWGPublicKeyPattern = "%s.wireguard.semaphore.uw.io/pubKey"
+	watchAnnotationWGEndpointPattern  = "%s.wireguard.semaphore.uw.io/endpoint"
+	localAnnotationWGPublicKeyPattern = "%s.wireguard.semaphore.uw.io/pubKey"
+	localAnnotationWGEndpointPattern  = "%s.wireguard.semaphore.uw.io/endpoint"
 	wgDeviceNamePattern               = "wireguard.%s"
 )
 

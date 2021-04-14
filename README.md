@@ -36,7 +36,7 @@ local and the remote clusters that semaphore-wireguard operates on.
 
 ## Local
 - name: the name of the local cluster, it will be used on the created nodes
-  annotations (wireguard.<name>.uw.io)
+  annotations (<name>.wireguard.semaphore.uw.io)
 
 ## Remotes
 Is a list of remote clusters that may define the following:
