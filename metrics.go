@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/utilitywarehouse/kube-wiresteward/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/log"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -26,37 +26,37 @@ func newMetricsCollector(devices func() ([]*wgtypes.Device, error)) prometheus.C
 
 	return &collector{
 		DeviceInfo: prometheus.NewDesc(
-			"wiresteward_wg_device_info",
+			"semaphore_wg_device_info",
 			"Metadata about a device.",
 			labels,
 			nil,
 		),
 		PeerInfo: prometheus.NewDesc(
-			"wiresteward_wg_peer_info",
+			"semaphore_wg_peer_info",
 			"Metadata about a peer. The public_key label on peer metrics refers to the peer's public key; not the device's public key.",
 			append(labels, []string{"endpoint"}...),
 			nil,
 		),
 		PeerAllowedIPsInfo: prometheus.NewDesc(
-			"wiresteward_wg_peer_allowed_ips_info",
+			"semaphore_wg_peer_allowed_ips_info",
 			"Metadata about each of a peer's allowed IP subnets for a given device.",
 			append(labels, []string{"allowed_ips"}...),
 			nil,
 		),
 		PeerReceiveBytes: prometheus.NewDesc(
-			"wiresteward_wg_peer_receive_bytes_total",
+			"semaphore_wg_peer_receive_bytes_total",
 			"Number of bytes received from a given peer.",
 			labels,
 			nil,
 		),
 		PeerTransmitBytes: prometheus.NewDesc(
-			"wiresteward_wg_peer_transmit_bytes_total",
+			"semaphore_wg_peer_transmit_bytes_total",
 			"Number of bytes transmitted to a given peer.",
 			labels,
 			nil,
 		),
 		PeerLastHandshake: prometheus.NewDesc(
-			"wiresteward_wg_peer_last_handshake_seconds",
+			"semaphore_wg_peer_last_handshake_seconds",
 			"UNIX timestamp for the last handshake with a given peer.",
 			labels,
 			nil,

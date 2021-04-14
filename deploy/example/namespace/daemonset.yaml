@@ -1,42 +1,42 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: &name wiresteward
+  name: semaphore-wireguard
   labels:
-    app: *name
+    app: semaphore-wireguard
 spec:
   selector:
     matchLabels:
-      app: *name
+      app: semaphore-wireguard
   template:
     metadata:
       labels:
-        app: *name
+        app: semaphore-wireguard
     spec:
-      serviceAccountName: wiresteward-local
+      serviceAccountName: semaphore-wireguard
       hostNetwork: true
       containers:
-        - name: wiresteward
-          image: quay.io/utilitywarehouse/kube-wiresteward:latest
+        - name: semaphore-wireguard
+          image: semaphore-wireguard
           imagePullPolicy: Always
           env:
-            - name: WS_NODE_NAME
+            - name: SWG_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: WS_CLUSTERS_CONFIG
-              value: "/etc/wiresteward/config.json"
+            - name: SWG_CLUSTERS_CONFIG
+              value: "/etc/semaphore-wireguard/config.json"
           ports:
             - name: readiness-port
               containerPort: 7773
           volumeMounts:
-            - name: var-lib-wiresteward
-              mountPath: /var/lib/wiresteward
-            - name: aws-token
-              mountPath: /etc/wiresteward/tokens/aws/
+            - name: var-lib-semaphore-wireguard
+              mountPath: /var/lib/semaphore-wiregurad
+            - name: remote-token
+              mountPath: /etc/semaphore-wireguard/tokens/remote/
               readOnly: true
             - name: config
-              mountPath: /etc/wiresteward/
+              mountPath: /etc/semaphore-wireguard/
           securityContext:
             capabilities:
               add:
@@ -48,12 +48,12 @@ spec:
             periodSeconds: 10
             failureThreshold: 1
       volumes:
-        - name: var-lib-wiresteward
+        - name: var-lib-semaphore-wireguard
           hostPath:
-            path: /var/lib/wiresteward
-        - name: aws-token
+            path: /var/lib/semaphore-wireguard
+        - name: remote-token
           secret:
-            secretName: wiresteward-aws-token
+            secretName: semaphore-wireguard-token-remote
         - name: config
           configMap:
-            name: wiresteward-config
+            name: semaphore-wireguard-config

@@ -13,9 +13,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/utilitywarehouse/kube-wiresteward/kube"
-	"github.com/utilitywarehouse/kube-wiresteward/log"
-	"github.com/utilitywarehouse/kube-wiresteward/wireguard"
+	"github.com/utilitywarehouse/semaphore-wireguard/kube"
+	"github.com/utilitywarehouse/semaphore-wireguard/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/wireguard"
 )
 
 // Peer keeps the config for a wireguard peer.

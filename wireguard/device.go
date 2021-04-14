@@ -11,7 +11,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"github.com/utilitywarehouse/kube-wiresteward/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/log"
 )
 
 // Device is the struct to hold the link device and the wireguard attributes we
