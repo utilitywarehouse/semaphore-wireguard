@@ -14,6 +14,7 @@ spec:
   allowedCapabilities:
     - NET_ADMIN
   volumes:
+    - configMap
     - hostPath
     - secret
   hostNetwork: true
