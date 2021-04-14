@@ -14,25 +14,25 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"github.com/utilitywarehouse/kube-wiresteward/kube"
-	"github.com/utilitywarehouse/kube-wiresteward/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/kube"
+	"github.com/utilitywarehouse/semaphore-wireguard/log"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	watchAnnotationWGPublicKeyPattern = "wiresteward.%s.uw.io/pubKey"
-	watchAnnotationWGEndpointPattern  = "wiresteward.%s.uw.io/endpoint"
-	localAnnotationWGPublicKeyPattern = "wiresteward.%s.uw.io/pubKey"
-	localAnnotationWGEndpointPattern  = "wiresteward.%s.uw.io/endpoint"
+	watchAnnotationWGPublicKeyPattern = "wireguard.%s.uw.io/pubKey"
+	watchAnnotationWGEndpointPattern  = "wireguard.%s.uw.io/endpoint"
+	localAnnotationWGPublicKeyPattern = "wireguard.%s.uw.io/pubKey"
+	localAnnotationWGEndpointPattern  = "wireguard.%s.uw.io/endpoint"
 	wgDeviceNamePattern               = "wireguard.%s"
 )
 
 var (
-	flagLogLevel         = flag.String("log-level", getEnv("WS_LOG_LEVEL", "info"), "Log level")
-	flagWSNodeName       = flag.String("ws-node-name", getEnv("WS_NODE_NAME", ""), "(Required) The node on which wiresteward is running")
-	flagWGKeyPath        = flag.String("wg-key-path", getEnv("WS_WG_KEY_PATH", "/var/lib/wiresteward"), "Path to store and look for wg private key")
-	flagWSListenAddr     = flag.String("listen-address", getEnv("WS_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
-	flagWSClustersConfig = flag.String("clusters-config", getEnv("WS_CLUSTERS_CONFIG", ""), "Path to the wiresteward clusters' json config file")
+	flagLogLevel          = flag.String("log-level", getEnv("SWG_LOG_LEVEL", "info"), "Log level")
+	flagNodeName          = flag.String("node-name", getEnv("SWG_NODE_NAME", ""), "(Required) The node on which semaphore-wireguard is running")
+	flagWGKeyPath         = flag.String("wg-key-path", getEnv("SWG_WG_KEY_PATH", "/var/lib/semaphore-wireguard"), "Path to store and look for wg private key")
+	flagSWGListenAddr     = flag.String("listen-address", getEnv("SWG_LISTEN_ADDRESS", ":7773"), "Listen address to serve health and metrics")
+	flagSWGClustersConfig = flag.String("clusters-config", getEnv("SWG_CLUSTERS_CONFIG", ""), "Path to the clusters' json config file")
 
 	bearerRe = regexp.MustCompile(`[A-Z|a-z0-9\-\._~\+\/]+=*`)
 )
@@ -52,17 +52,17 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	flag.Parse()
-	log.InitLogger("kube-wiresteward", *flagLogLevel)
+	log.InitLogger("semaphore-wireguard", *flagLogLevel)
 
-	if *flagWSNodeName == "" {
-		log.Logger.Error("Must specify the kube node that wiresteward runs on")
+	if *flagNodeName == "" {
+		log.Logger.Error("Must specify the kube node that semaphore-wireguard runs on")
 		usage()
 	}
-	if *flagWSClustersConfig == "" {
+	if *flagSWGClustersConfig == "" {
 		log.Logger.Error("Must specify a clusters config file location")
 		usage()
 	}
-	fileContent, err := os.ReadFile(*flagWSClustersConfig)
+	fileContent, err := os.ReadFile(*flagSWGClustersConfig)
 	if err != nil {
 		log.Logger.Error("Cannot read clusters config file", "err", err)
 		os.Exit(1)
@@ -142,7 +142,7 @@ func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remote
 	r := newRunner(
 		homeClient,
 		remoteClient,
-		*flagWSNodeName,
+		*flagNodeName,
 		wgDeviceName,
 		fmt.Sprintf("%s/%s.key", *flagWGKeyPath, wgDeviceName),
 		localName,
@@ -184,7 +184,7 @@ func listenAndServe(runners []*Runner) {
 		}
 	})
 	server := http.Server{
-		Addr:    *flagWSListenAddr,
+		Addr:    *flagSWGListenAddr,
 		Handler: mux,
 	}
 	log.Logger.Error(

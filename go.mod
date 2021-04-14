@@ -1,4 +1,4 @@
-module github.com/utilitywarehouse/kube-wiresteward
+module github.com/utilitywarehouse/semaphore-wireguard
 
 go 1.16
 

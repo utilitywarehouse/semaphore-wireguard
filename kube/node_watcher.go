@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/utilitywarehouse/kube-wiresteward/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/log"
 )
 
 // NodeEventHandler is the function to handle new events

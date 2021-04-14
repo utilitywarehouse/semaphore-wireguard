@@ -1,0 +1,34 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: semaphore-wireguard
+rules:
+  - apiGroups: ['']
+    resources:
+      - nodes
+    verbs:
+      - watch
+      - list
+      - get
+      - patch
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - semaphore-wireguard
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: semaphore-wireguard
+subjects:
+  - kind: ServiceAccount
+    name: semaphore-wireguard
+    namespace: namespace
+roleRef:
+  kind: ClusterRole
+  name: semaphore-wireguard
+  apiGroup: rbac.authorization.k8s.io
