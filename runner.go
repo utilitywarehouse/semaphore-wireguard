@@ -29,16 +29,16 @@ type Peer struct {
 type RunnerAnnotations struct {
 	watchAnnotationWGPublicKey string
 	watchAnnotationWGEndpoint  string
-	localAnnotationWGPublicKey string
-	localAnnotationWGEndpoint  string
+	advAnnotationWGPublicKey   string
+	advAnnotationWGEndpoint    string
 }
 
-func constructRunnerAnnotations(localClusterName, watchClusterName string) RunnerAnnotations {
+func constructRunnerAnnotations(localClusterName, remoteClusterName string) RunnerAnnotations {
 	return RunnerAnnotations{
-		watchAnnotationWGPublicKey: fmt.Sprintf(watchAnnotationWGPublicKeyPattern, watchClusterName),
-		watchAnnotationWGEndpoint:  fmt.Sprintf(watchAnnotationWGEndpointPattern, watchClusterName),
-		localAnnotationWGPublicKey: fmt.Sprintf(localAnnotationWGPublicKeyPattern, localClusterName),
-		localAnnotationWGEndpoint:  fmt.Sprintf(localAnnotationWGEndpointPattern, localClusterName),
+		watchAnnotationWGPublicKey: fmt.Sprintf(watchAnnotationWGPublicKeyPattern, localClusterName),
+		watchAnnotationWGEndpoint:  fmt.Sprintf(watchAnnotationWGEndpointPattern, localClusterName),
+		advAnnotationWGPublicKey:   fmt.Sprintf(advAnnotationWGPublicKeyPattern, remoteClusterName),
+		advAnnotationWGEndpoint:    fmt.Sprintf(advAnnotationWGEndpointPattern, remoteClusterName),
 	}
 }
 
@@ -55,14 +55,14 @@ type Runner struct {
 	annotations RunnerAnnotations
 }
 
-func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, watchClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
+func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, remoteClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
 	runner := &Runner{
 		nodeName:    nodeName,
 		client:      client,
 		podSubnet:   podSubnet,
 		peers:       make(map[string]Peer),
 		canUpdate:   false,
-		annotations: constructRunnerAnnotations(localClusterName, watchClusterName),
+		annotations: constructRunnerAnnotations(localClusterName, remoteClusterName),
 	}
 	runner.device = wireguard.NewDevice(wgDeviceName, wgKeyPath, wgDeviceMTU, wgListenPort)
 	nw := kube.NewNodeWatcher(
@@ -155,8 +155,8 @@ func (r *Runner) patchLocalNode() error {
 		return fmt.Errorf("Could not calculate wg endpoint, node internal address not found")
 	}
 	annotations := map[string]string{
-		r.annotations.localAnnotationWGPublicKey: r.device.PublicKey(),
-		r.annotations.localAnnotationWGEndpoint:  wgEndpoint,
+		r.annotations.advAnnotationWGPublicKey: r.device.PublicKey(),
+		r.annotations.advAnnotationWGEndpoint:  wgEndpoint,
 	}
 	if err := kube.PatchNodeAnnotation(r.client, r.nodeName, annotations); err != nil {
 		return err
