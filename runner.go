@@ -27,18 +27,18 @@ type Peer struct {
 // RunnerAnnotations contains the annotations that each runner should use for
 // updating its local node and watching a remote cluster.
 type RunnerAnnotations struct {
-	watchAnnotationWGPublicKey string
-	watchAnnotationWGEndpoint  string
-	advAnnotationWGPublicKey   string
-	advAnnotationWGEndpoint    string
+	watchAnnotationWGPublicKey      string
+	watchAnnotationWGEndpoint       string
+	advertisedAnnotationWGPublicKey string
+	advertisedAnnotationWGEndpoint  string
 }
 
 func constructRunnerAnnotations(localClusterName, remoteClusterName string) RunnerAnnotations {
 	return RunnerAnnotations{
-		watchAnnotationWGPublicKey: fmt.Sprintf(watchAnnotationWGPublicKeyPattern, localClusterName),
-		watchAnnotationWGEndpoint:  fmt.Sprintf(watchAnnotationWGEndpointPattern, localClusterName),
-		advAnnotationWGPublicKey:   fmt.Sprintf(advAnnotationWGPublicKeyPattern, remoteClusterName),
-		advAnnotationWGEndpoint:    fmt.Sprintf(advAnnotationWGEndpointPattern, remoteClusterName),
+		watchAnnotationWGPublicKey:      fmt.Sprintf(annotationWGPublicKeyPattern, localClusterName),
+		watchAnnotationWGEndpoint:       fmt.Sprintf(annotationWGEndpointPattern, localClusterName),
+		advertisedAnnotationWGPublicKey: fmt.Sprintf(annotationWGPublicKeyPattern, remoteClusterName),
+		advertisedAnnotationWGEndpoint:  fmt.Sprintf(annotationWGEndpointPattern, remoteClusterName),
 	}
 }
 
@@ -155,8 +155,8 @@ func (r *Runner) patchLocalNode() error {
 		return fmt.Errorf("Could not calculate wg endpoint, node internal address not found")
 	}
 	annotations := map[string]string{
-		r.annotations.advAnnotationWGPublicKey: r.device.PublicKey(),
-		r.annotations.advAnnotationWGEndpoint:  wgEndpoint,
+		r.annotations.advertisedAnnotationWGPublicKey: r.device.PublicKey(),
+		r.annotations.advertisedAnnotationWGEndpoint:  wgEndpoint,
 	}
 	if err := kube.PatchNodeAnnotation(r.client, r.nodeName, annotations); err != nil {
 		return err
