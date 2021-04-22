@@ -121,8 +121,12 @@ func (r *Runner) Update() error {
 	if !r.canUpdate {
 		return fmt.Errorf("Cannot update while canUpdate flag is not set")
 	}
+	peers, err := r.calculatePeersFromNodeList()
+	if err != nil {
+		return fmt.Errorf("Failed to get peers list: %v", err)
+	}
 	var peersConfig []wgtypes.PeerConfig
-	for pubKey, peer := range r.peers {
+	for pubKey, peer := range peers {
 		pc, err := wireguard.NewPeerConfig(pubKey, "", peer.endpoint, peer.allowedIPs)
 		if err != nil {
 			return err
@@ -133,7 +137,27 @@ func (r *Runner) Update() error {
 	if err := wireguard.SetPeers(r.device.Name(), peersConfig); err != nil {
 		return err
 	}
+	r.peers = peers
 	return nil
+}
+
+func (r *Runner) calculatePeersFromNodeList() (map[string]Peer, error) {
+	nodes, err := r.nodeWatcher.List()
+	if err != nil {
+		return nil, err
+	}
+	peers := map[string]Peer{}
+	for _, node := range nodes {
+		if r.checkWSAnnotationsExist(node.Annotations) {
+			pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
+			peer := Peer{
+				allowedIPs: []string{node.Spec.PodCIDR},
+				endpoint:   node.Annotations[r.annotations.watchAnnotationWGEndpoint],
+			}
+			peers[pubKey] = peer
+		}
+	}
+	return peers, nil
 }
 
 // patchLocalNode will make sure we set the needed annotations on the node and
@@ -252,7 +276,6 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 			return
 		}
 	}
-	r.peers[pubKey] = peer
 	if err := r.Update(); err != nil {
 		log.Logger.Warn("Update failed", "err", err)
 	}
@@ -261,8 +284,9 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 	log.Logger.Debug("On peer node delete", "namename", node.Name)
 	pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
-	if _, ok := r.peers[pubKey]; ok {
-		delete(r.peers, pubKey)
+	if _, ok := r.peers[pubKey]; !ok {
+		// if peer is not in the list we do not need to update anything
+		return
 	}
 	if err := r.Update(); err != nil {
 		log.Logger.Warn("Update failed", "err", err)
