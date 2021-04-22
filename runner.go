@@ -87,11 +87,6 @@ func (r *Runner) Run() error {
 	if err := r.patchLocalNode(); err != nil {
 		return err
 	}
-	// TODO: see if we need to set an address on the wg interface, seems
-	// that everything can work without it
-	//if err := r.setLocalDeviceAddress(); err != nil {
-	//	return err
-	//}
 	if err := r.device.FlushAddresses(); err != nil {
 		return err
 	}
@@ -121,8 +116,12 @@ func (r *Runner) Update() error {
 	if !r.canUpdate {
 		return fmt.Errorf("Cannot update while canUpdate flag is not set")
 	}
+	peers, err := r.calculatePeersFromNodeList()
+	if err != nil {
+		return fmt.Errorf("Failed to get peers list: %v", err)
+	}
 	var peersConfig []wgtypes.PeerConfig
-	for pubKey, peer := range r.peers {
+	for pubKey, peer := range peers {
 		pc, err := wireguard.NewPeerConfig(pubKey, "", peer.endpoint, peer.allowedIPs)
 		if err != nil {
 			return err
@@ -133,7 +132,27 @@ func (r *Runner) Update() error {
 	if err := wireguard.SetPeers(r.device.Name(), peersConfig); err != nil {
 		return err
 	}
+	r.peers = peers
 	return nil
+}
+
+func (r *Runner) calculatePeersFromNodeList() (map[string]Peer, error) {
+	nodes, err := r.nodeWatcher.List()
+	if err != nil {
+		return nil, err
+	}
+	peers := map[string]Peer{}
+	for _, node := range nodes {
+		if r.checkWSAnnotationsExist(node.Annotations) {
+			pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
+			peer := Peer{
+				allowedIPs: []string{node.Spec.PodCIDR},
+				endpoint:   node.Annotations[r.annotations.watchAnnotationWGEndpoint],
+			}
+			peers[pubKey] = peer
+		}
+	}
+	return peers, nil
 }
 
 // patchLocalNode will make sure we set the needed annotations on the node and
@@ -162,26 +181,6 @@ func (r *Runner) patchLocalNode() error {
 		return err
 	}
 	return nil
-}
-
-// setLocalDeviceAddress gets the pod cidr from the local node spec and assignes
-// the first address to the wireguard interface.
-func (r *Runner) setLocalDeviceAddress() error {
-	ctx := context.Background()
-	node, err := r.client.CoreV1().Nodes().Get(ctx, r.nodeName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	// TODO: derive an ip from node's spec pod cidr
-	// For now let's rely on calico
-	calicoIP, ok := node.Annotations["projectcalico.org/IPv4IPIPTunnelAddr"]
-	if !ok {
-		return fmt.Errorf("Cannot get ip from calico annotations, is calico running on the node?")
-	}
-	return r.device.UpdateAddress(&net.IPNet{
-		IP:   net.ParseIP(calicoIP),
-		Mask: net.CIDRMask(32, 32),
-	})
 }
 
 func (r *Runner) checkWSAnnotationsExist(annotations map[string]string) bool {
@@ -252,7 +251,6 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 			return
 		}
 	}
-	r.peers[pubKey] = peer
 	if err := r.Update(); err != nil {
 		log.Logger.Warn("Update failed", "err", err)
 	}
@@ -261,8 +259,9 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 	log.Logger.Debug("On peer node delete", "namename", node.Name)
 	pubKey := node.Annotations[r.annotations.watchAnnotationWGPublicKey]
-	if _, ok := r.peers[pubKey]; ok {
-		delete(r.peers, pubKey)
+	if _, ok := r.peers[pubKey]; !ok {
+		// if peer is not in the list we do not need to update anything
+		return
 	}
 	if err := r.Update(); err != nil {
 		log.Logger.Warn("Update failed", "err", err)

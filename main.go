@@ -178,8 +178,8 @@ func listenAndServe(runners []*Runner) {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 	server := http.Server{
 		Addr:    *flagSWGListenAddr,

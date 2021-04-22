@@ -102,15 +102,15 @@ func (nw *NodeWatcher) HasSynced() bool {
 
 // List lists all nodes from the store
 func (nw *NodeWatcher) List() ([]*v1.Node, error) {
-	var svcs []*v1.Node
+	var nodes []*v1.Node
 	for _, obj := range nw.store.List() {
-		svc, ok := obj.(*v1.Node)
+		node, ok := obj.(*v1.Node)
 		if !ok {
 			return nil, fmt.Errorf("unexpected object in store: %+v", obj)
 		}
-		svcs = append(svcs, svc)
+		nodes = append(nodes, node)
 	}
-	return svcs, nil
+	return nodes, nil
 }
 
 // Healthy is true when both list and watch handlers are running without errors.
