@@ -87,11 +87,6 @@ func (r *Runner) Run() error {
 	if err := r.patchLocalNode(); err != nil {
 		return err
 	}
-	// TODO: see if we need to set an address on the wg interface, seems
-	// that everything can work without it
-	//if err := r.setLocalDeviceAddress(); err != nil {
-	//	return err
-	//}
 	if err := r.device.FlushAddresses(); err != nil {
 		return err
 	}
@@ -186,26 +181,6 @@ func (r *Runner) patchLocalNode() error {
 		return err
 	}
 	return nil
-}
-
-// setLocalDeviceAddress gets the pod cidr from the local node spec and assignes
-// the first address to the wireguard interface.
-func (r *Runner) setLocalDeviceAddress() error {
-	ctx := context.Background()
-	node, err := r.client.CoreV1().Nodes().Get(ctx, r.nodeName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	// TODO: derive an ip from node's spec pod cidr
-	// For now let's rely on calico
-	calicoIP, ok := node.Annotations["projectcalico.org/IPv4IPIPTunnelAddr"]
-	if !ok {
-		return fmt.Errorf("Cannot get ip from calico annotations, is calico running on the node?")
-	}
-	return r.device.UpdateAddress(&net.IPNet{
-		IP:   net.ParseIP(calicoIP),
-		Mask: net.CIDRMask(32, 32),
-	})
 }
 
 func (r *Runner) checkWSAnnotationsExist(annotations map[string]string) bool {
