@@ -6,6 +6,30 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+var (
+	syncPeersAttempt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "semaphore_wg_sync_peers",
+			Help: "Counts runners' attempts to sync peers.",
+		},
+		[]string{"device", "success"},
+	)
+	syncQueueFullFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "semaphore_wg_sync_queue_full_failures",
+			Help: "Number of times a sync task was not added to the sync queue in time because the queue was full.",
+		},
+		[]string{"device"},
+	)
+	syncRequeue = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "semaphore_wg_sync_requeue",
+			Help: "Number of attempts to requeue a sync.",
+		},
+		[]string{"device"},
+	)
+)
+
 // A collector is a prometheus.Collector for a WireGuard device.
 type collector struct {
 	DeviceInfo         *prometheus.Desc
@@ -16,6 +40,12 @@ type collector struct {
 	PeerLastHandshake  *prometheus.Desc
 
 	devices func() ([]*wgtypes.Device, error) // to allow testing
+}
+
+func init() {
+	prometheus.MustRegister(syncPeersAttempt)
+	prometheus.MustRegister(syncQueueFullFailures)
+	prometheus.MustRegister(syncRequeue)
 }
 
 // NewMetricsCollector constructs a prometheus.Collector to collect metrics for
@@ -150,4 +180,27 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 	}
+}
+
+func MetricsSyncPeerAttempt(device string, err error) {
+	s := "1"
+	if err != nil {
+		s = "0"
+	}
+	syncPeersAttempt.With(prometheus.Labels{
+		"device":  device,
+		"success": s,
+	}).Inc()
+}
+
+func MetricsIncSyncQueueFullFailures(device string) {
+	syncQueueFullFailures.With(prometheus.Labels{
+		"device": device,
+	}).Inc()
+}
+
+func MetricsIncSyncRequeue(device string) {
+	syncRequeue.With(prometheus.Labels{
+		"device": device,
+	}).Inc()
 }

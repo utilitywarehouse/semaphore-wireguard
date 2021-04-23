@@ -109,6 +109,11 @@ func main() {
 
 	makeMetricsCollector(wgMetricsClient, wgDeviceNames)
 	listenAndServe(runners)
+
+	// Stop runners before finishing
+	for _, r := range runners {
+		r.stop <- struct{}{}
+	}
 }
 
 func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remoteClusterConfig) (*Runner, string, error) {
