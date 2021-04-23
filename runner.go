@@ -51,8 +51,10 @@ type Runner struct {
 	device      *wireguard.Device
 	nodeWatcher *kube.NodeWatcher
 	peers       map[string]Peer
-	canUpdate   bool // Flag to allow updating wireguard peers only after initial node watcher sync
+	canSync     bool // Flag to allow updating wireguard peers only after initial node watcher sync
 	annotations RunnerAnnotations
+	sync        chan struct{}
+	stop        chan struct{}
 }
 
 func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, remoteClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
@@ -61,8 +63,10 @@ func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName,
 		client:      client,
 		podSubnet:   podSubnet,
 		peers:       make(map[string]Peer),
-		canUpdate:   false,
+		canSync:     false,
 		annotations: constructRunnerAnnotations(localClusterName, remoteClusterName),
+		sync:        make(chan struct{}),
+		stop:        make(chan struct{}),
 	}
 	runner.device = wireguard.NewDevice(wgDeviceName, wgKeyPath, wgDeviceMTU, wgListenPort)
 	nw := kube.NewNodeWatcher(
@@ -72,6 +76,7 @@ func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName,
 	)
 	runner.nodeWatcher = nw
 	runner.nodeWatcher.Init()
+	go runner.syncLoop()
 
 	return runner
 }
@@ -104,18 +109,33 @@ func (r *Runner) Run() error {
 	if err := r.device.AddRouteToNet(r.podSubnet); err != nil {
 		return err
 	}
-	r.canUpdate = true
-	if err := r.Update(); err != nil {
-		log.Logger.Warn("Update failed", "err", err)
-	}
+	r.canSync = true
+	r.enqueuePeersSync()
 	return nil
 }
 
-// Update is responsible for updating local wireguard device peers and routes
-func (r *Runner) Update() error {
-	if !r.canUpdate {
-		return fmt.Errorf("Cannot update while canUpdate flag is not set")
+func (r *Runner) syncLoop() {
+	for {
+		select {
+		case <-r.sync:
+			if !r.canSync {
+				log.Logger.Warn("Cannot sync peers while canSync flag is not set")
+				continue
+			}
+			if err := r.syncPeers(); err != nil {
+				log.Logger.Warn("Failed to sync wg peers", "err", err)
+			}
+		case <-r.stop:
+			log.Logger.Debug("Stopping sync loop")
+			return
+		}
 	}
+}
+
+// syncPeers will try to get a list of peers based on the nodes list and set wg
+// peers based on the nodes annotations. It also updates the runner's peer
+// variable.
+func (r *Runner) syncPeers() error {
 	peers, err := r.calculatePeersFromNodeList()
 	if err != nil {
 		return fmt.Errorf("Failed to get peers list: %v", err)
@@ -134,6 +154,24 @@ func (r *Runner) Update() error {
 	}
 	r.peers = peers
 	return nil
+}
+
+func (r *Runner) enqueuePeersSync() {
+	select {
+	case r.sync <- struct{}{}:
+		log.Logger.Debug("Sync task queued")
+	case <-time.After(5 * time.Second):
+		log.Logger.Error("Timed out trying to queue a sync action for netset, sync queue is full")
+		r.requeuePeersSync()
+	}
+}
+
+func (r *Runner) requeuePeersSync() {
+	log.Logger.Debug("Requeueing peers sync task")
+	go func() {
+		time.Sleep(1)
+		r.enqueuePeersSync()
+	}()
 }
 
 func (r *Runner) calculatePeersFromNodeList() (map[string]Peer, error) {
@@ -251,9 +289,7 @@ func (r *Runner) onPeerNodeUpdate(node *v1.Node) {
 			return
 		}
 	}
-	if err := r.Update(); err != nil {
-		log.Logger.Warn("Update failed", "err", err)
-	}
+	r.enqueuePeersSync()
 }
 
 func (r *Runner) onPeerNodeDelete(node *v1.Node) {
@@ -263,9 +299,7 @@ func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 		// if peer is not in the list we do not need to update anything
 		return
 	}
-	if err := r.Update(); err != nil {
-		log.Logger.Warn("Update failed", "err", err)
-	}
+	r.enqueuePeersSync()
 }
 
 // Healthy is true if the node watcher is reporting healthy.
