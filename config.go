@@ -42,8 +42,9 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 var (
-	defaultWatcherResyncPeriod = Duration{time.Hour}
-	zeroDuration               = Duration{0}
+	defaultWatcherResyncPeriod  = Duration{time.Hour}
+	defaultFullPeerResyncPeriod = Duration{time.Hour}
+	zeroDuration                = Duration{0}
 )
 
 type localClusterConfig struct {
@@ -52,15 +53,16 @@ type localClusterConfig struct {
 }
 
 type remoteClusterConfig struct {
-	Name              string   `json:"name"`
-	KubeConfigPath    string   `json:"kubeConfigPath"`
-	RemoteAPIURL      string   `json:"remoteAPIURL"`
-	RemoteCAURL       string   `json:"remoteCAURL"`
-	RemoteSATokenPath string   `json:"remoteSATokenPath"`
-	WGDeviceMTU       int      `json:"wgDeviceMTU"`
-	WGListenPort      int      `json:"wgListenPort"`
-	PodSubnet         string   `json:"podSubnet"`
-	ResyncPeriod      Duration `json:"resyncPeriod"`
+	Name                 string   `json:"name"`
+	KubeConfigPath       string   `json:"kubeConfigPath"`
+	RemoteAPIURL         string   `json:"remoteAPIURL"`
+	RemoteCAURL          string   `json:"remoteCAURL"`
+	RemoteSATokenPath    string   `json:"remoteSATokenPath"`
+	WGDeviceMTU          int      `json:"wgDeviceMTU"`
+	WGListenPort         int      `json:"wgListenPort"`
+	PodSubnet            string   `json:"podSubnet"`
+	FullPeerResyncPeriod Duration `json:"fullPeerResyncPeriod"`
+	WatcherResyncPeriod  Duration `json:"watcherResyncPeriod"`
 }
 
 type Config struct {
@@ -97,8 +99,11 @@ func parseConfig(rawConfig []byte) (*Config, error) {
 		if r.WGListenPort == 0 {
 			r.WGListenPort = defaultWGListenPort
 		}
-		if r.ResyncPeriod == zeroDuration {
-			r.ResyncPeriod = defaultWatcherResyncPeriod
+		if r.WatcherResyncPeriod == zeroDuration {
+			r.WatcherResyncPeriod = defaultWatcherResyncPeriod
+		}
+		if r.FullPeerResyncPeriod == zeroDuration {
+			r.FullPeerResyncPeriod = defaultFullPeerResyncPeriod
 		}
 	}
 	return conf, nil

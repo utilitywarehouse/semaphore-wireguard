@@ -62,6 +62,11 @@ Is a list of remote clusters that may define the following:
 
 - wgListenPort: WG listen port.
 
+- fullPeerResyncPeriod: Period to attempt a full wg peers resync based on the
+  remote cluster's node list.
+
+- watcherResyncPeriod: Resync period for kube watcher cache.
+
 ## Example
 ```
 {

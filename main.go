@@ -153,7 +153,8 @@ func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remote
 		rConf.WGDeviceMTU,
 		rConf.WGListenPort,
 		podSubnet,
-		rConf.ResyncPeriod.Duration,
+		rConf.WatcherResyncPeriod.Duration,
+		rConf.FullPeerResyncPeriod.Duration,
 	)
 	return r, wgDeviceName, nil
 }

@@ -45,33 +45,35 @@ func constructRunnerAnnotations(localClusterName, remoteClusterName string) Runn
 // Runner is the main runner that keeps a watch on the remote cluster's nodes
 // and adds/removes local peers.
 type Runner struct {
-	nodeName    string
-	client      kubernetes.Interface
-	podSubnet   *net.IPNet
-	device      *wireguard.Device
-	nodeWatcher *kube.NodeWatcher
-	peers       map[string]Peer
-	canSync     bool // Flag to allow updating wireguard peers only after initial node watcher sync
-	annotations RunnerAnnotations
-	sync        chan struct{}
-	stop        chan struct{}
+	nodeName         string
+	client           kubernetes.Interface
+	podSubnet        *net.IPNet
+	device           *wireguard.Device
+	nodeWatcher      *kube.NodeWatcher
+	peers            map[string]Peer
+	canSync          bool // Flag to allow updating wireguard peers only after initial node watcher sync
+	annotations      RunnerAnnotations
+	fullResyncPeriod time.Duration
+	sync             chan struct{}
+	stop             chan struct{}
 }
 
-func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, remoteClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, resyncPeriod time.Duration) *Runner {
+func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName, wgKeyPath, localClusterName, remoteClusterName string, wgDeviceMTU, wgListenPort int, podSubnet *net.IPNet, watcherResyncPeriod, fullPeerResyncPeriod time.Duration) *Runner {
 	runner := &Runner{
-		nodeName:    nodeName,
-		client:      client,
-		podSubnet:   podSubnet,
-		peers:       make(map[string]Peer),
-		canSync:     false,
-		annotations: constructRunnerAnnotations(localClusterName, remoteClusterName),
-		sync:        make(chan struct{}),
-		stop:        make(chan struct{}),
+		nodeName:         nodeName,
+		client:           client,
+		podSubnet:        podSubnet,
+		peers:            make(map[string]Peer),
+		canSync:          false,
+		annotations:      constructRunnerAnnotations(localClusterName, remoteClusterName),
+		fullResyncPeriod: fullPeerResyncPeriod,
+		sync:             make(chan struct{}),
+		stop:             make(chan struct{}),
 	}
 	runner.device = wireguard.NewDevice(wgDeviceName, wgKeyPath, wgDeviceMTU, wgListenPort)
 	nw := kube.NewNodeWatcher(
 		watchClient,
-		resyncPeriod,
+		watcherResyncPeriod,
 		runner.nodeEventHandler,
 	)
 	runner.nodeWatcher = nw
@@ -115,23 +117,32 @@ func (r *Runner) Run() error {
 }
 
 func (r *Runner) syncLoop() {
+	ticker := time.NewTicker(r.fullResyncPeriod)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-r.sync:
-			if !r.canSync {
-				log.Logger.Warn("Cannot sync peers while canSync flag is not set")
-				continue
-			}
-			err := r.syncPeers()
-			MetricsSyncPeerAttempt(r.device.Name(), err)
-			if err != nil {
-				log.Logger.Warn("Failed to sync wg peers", "err", err)
-				r.requeuePeersSync()
-			}
+			r.doSyncPeers()
+		case <-ticker.C:
+			log.Logger.Info("Full sync ticker expired, attempting a peers sync")
+			r.doSyncPeers()
 		case <-r.stop:
 			log.Logger.Debug("Stopping sync loop")
 			return
 		}
+	}
+}
+
+func (r *Runner) doSyncPeers() {
+	if !r.canSync {
+		log.Logger.Warn("Cannot sync peers while canSync flag is not set")
+		return
+	}
+	err := r.syncPeers()
+	MetricsSyncPeerAttempt(r.device.Name(), err)
+	if err != nil {
+		log.Logger.Warn("Failed to sync wg peers", "err", err)
+		r.requeuePeersSync()
 	}
 }
 

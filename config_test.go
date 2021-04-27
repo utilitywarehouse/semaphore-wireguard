@@ -77,7 +77,8 @@ func TestConfig(t *testing.T) {
       "podSubnet": "10.0.0.0/16",
       "wgDeviceMTU": 1500,
       "wgListenPort": 51821,
-      "resyncPeriod": "10s"
+      "fullPeerResyncPeriod": "20s",
+      "watcherResyncPeriod": "10s"
     },
     {
       "name": "remote_cluster_2",
@@ -100,7 +101,8 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "10.0.0.0/16", config.Remotes[0].PodSubnet)
 	assert.Equal(t, 1500, config.Remotes[0].WGDeviceMTU)
 	assert.Equal(t, 51821, config.Remotes[0].WGListenPort)
-	assert.Equal(t, Duration{10 * time.Second}, config.Remotes[0].ResyncPeriod)
+	assert.Equal(t, Duration{20 * time.Second}, config.Remotes[0].FullPeerResyncPeriod)
+	assert.Equal(t, Duration{10 * time.Second}, config.Remotes[0].WatcherResyncPeriod)
 	assert.Equal(t, "remote_cluster_2", config.Remotes[1].Name)
 	assert.Equal(t, "", config.Remotes[1].RemoteCAURL)
 	assert.Equal(t, "", config.Remotes[1].RemoteAPIURL)
@@ -109,6 +111,6 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "10.0.1.0/16", config.Remotes[1].PodSubnet)
 	assert.Equal(t, defaultWGDeviceMTU, config.Remotes[1].WGDeviceMTU)
 	assert.Equal(t, defaultWGListenPort, config.Remotes[1].WGListenPort)
-	assert.Equal(t, defaultWatcherResyncPeriod, config.Remotes[1].ResyncPeriod)
-
+	assert.Equal(t, defaultFullPeerResyncPeriod, config.Remotes[1].FullPeerResyncPeriod)
+	assert.Equal(t, defaultWatcherResyncPeriod, config.Remotes[1].WatcherResyncPeriod)
 }
