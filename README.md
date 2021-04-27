@@ -62,6 +62,8 @@ Is a list of remote clusters that may define the following:
 
 - wgListenPort: WG listen port.
 
+- resyncPeriod: Kubernetes watcher resync period. It should yield update events
+  for everything that is stored in the cache. Default `0` value disables it.
 ## Example
 ```
 {

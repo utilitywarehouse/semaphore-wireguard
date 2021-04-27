@@ -109,6 +109,6 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "10.0.1.0/16", config.Remotes[1].PodSubnet)
 	assert.Equal(t, defaultWGDeviceMTU, config.Remotes[1].WGDeviceMTU)
 	assert.Equal(t, defaultWGListenPort, config.Remotes[1].WGListenPort)
-	assert.Equal(t, defaultWatcherResyncPeriod, config.Remotes[1].ResyncPeriod)
+	assert.Equal(t, Duration{0}, config.Remotes[1].ResyncPeriod)
 
 }

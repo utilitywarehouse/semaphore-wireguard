@@ -41,11 +41,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 }
 
-var (
-	defaultWatcherResyncPeriod = Duration{time.Hour}
-	zeroDuration               = Duration{0}
-)
-
 type localClusterConfig struct {
 	Name           string `json:"name"`
 	KubeConfigPath string `json:"kubeConfigPath"`
@@ -96,9 +91,6 @@ func parseConfig(rawConfig []byte) (*Config, error) {
 		}
 		if r.WGListenPort == 0 {
 			r.WGListenPort = defaultWGListenPort
-		}
-		if r.ResyncPeriod == zeroDuration {
-			r.ResyncPeriod = defaultWatcherResyncPeriod
 		}
 	}
 	return conf, nil
