@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -16,8 +15,6 @@ import (
 
 	// in case of local kube config
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-
-	"github.com/utilitywarehouse/semaphore-wireguard/log"
 )
 
 type certMan struct {
@@ -26,21 +23,24 @@ type certMan struct {
 
 func (cm *certMan) verifyConn(cs tls.ConnectionState) error {
 	resp, err := http.Get(cm.caURL)
+	if err != nil {
+		return fmt.Errorf("error getting remote CA from %s: %v", cm.caURL, err)
+	}
 	defer func() {
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}()
-	if err != nil {
-		log.Logger.Error(
-			"error getting remote CA",
-			"err", err)
-		return err
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("expected %d response from %s, got %d", http.StatusOK, cm.caURL, resp.StatusCode)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body from %s: %v", cm.caURL, err)
+	}
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM(body)
 	if !ok {
-		return errors.New("failed to parse root certificate")
+		return fmt.Errorf("failed to parse root certificate from %s", cm.caURL)
 	}
 	opts := x509.VerifyOptions{
 		DNSName: cs.ServerName,
