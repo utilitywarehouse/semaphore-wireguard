@@ -123,7 +123,7 @@ func (r *Runner) syncLoop() {
 				continue
 			}
 			err := r.syncPeers()
-			MetricsSyncPeerAttempt(r.device.Name(), err)
+			metricsSyncPeerAttempt(r.device.Name(), err)
 			if err != nil {
 				log.Logger.Warn("Failed to sync wg peers", "err", err)
 				r.requeuePeersSync()
@@ -165,7 +165,7 @@ func (r *Runner) enqueuePeersSync() {
 		log.Logger.Debug("Sync task queued")
 	case <-time.After(5 * time.Second):
 		log.Logger.Error("Timed out trying to queue a sync action for netset, sync queue is full")
-		MetricsIncSyncQueueFullFailures(r.device.Name())
+		metricsIncSyncQueueFullFailures(r.device.Name())
 		r.requeuePeersSync()
 	}
 }
@@ -174,7 +174,7 @@ func (r *Runner) requeuePeersSync() {
 	log.Logger.Debug("Requeueing peers sync task")
 	go func() {
 		time.Sleep(1)
-		MetricsIncSyncRequeue(r.device.Name())
+		metricsIncSyncRequeue(r.device.Name())
 		r.enqueuePeersSync()
 	}()
 }
