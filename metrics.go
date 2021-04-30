@@ -10,21 +10,21 @@ import (
 var (
 	syncPeersAttempt = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "semaphore_wg_sync_peers",
+			Name: "semaphore_wg_sync_peers_total",
 			Help: "Counts runners' attempts to sync peers.",
 		},
 		[]string{"device", "success"},
 	)
 	syncQueueFullFailures = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "semaphore_wg_sync_queue_full_failures",
+			Name: "semaphore_wg_sync_queue_full_failures_total",
 			Help: "Number of times a sync task was not added to the sync queue in time because the queue was full.",
 		},
 		[]string{"device"},
 	)
 	syncRequeue = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "semaphore_wg_sync_requeue",
+			Name: "semaphore_wg_sync_requeue_total",
 			Help: "Number of attempts to requeue a sync.",
 		},
 		[]string{"device"},
