@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
+	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -30,6 +31,37 @@ var (
 	)
 )
 
+// registerMetrics registers all the prometheus collectors for this package
+func registerMetrics(wgMetricsClient *wgctrl.Client, wgDeviceNames []string) {
+	// Initialize counters with a value of 0
+	for _, d := range wgDeviceNames {
+		for _, s := range []string{"0", "1"} {
+			syncPeersAttempt.With(prometheus.Labels{"device": d, "success": s})
+		}
+		syncQueueFullFailures.With(prometheus.Labels{"device": d})
+		syncRequeue.With(prometheus.Labels{"device": d})
+	}
+
+	mc := newMetricsCollector(func() ([]*wgtypes.Device, error) {
+		var devices []*wgtypes.Device
+		for _, name := range wgDeviceNames {
+			device, err := wgMetricsClient.Device(name)
+			if err != nil {
+				return nil, err
+			}
+			devices = append(devices, device)
+		}
+		return devices, nil
+	})
+
+	prometheus.MustRegister(
+		mc,
+		syncPeersAttempt,
+		syncQueueFullFailures,
+		syncRequeue,
+	)
+}
+
 // A collector is a prometheus.Collector for a WireGuard device.
 type collector struct {
 	DeviceInfo         *prometheus.Desc
@@ -42,13 +74,7 @@ type collector struct {
 	devices func() ([]*wgtypes.Device, error) // to allow testing
 }
 
-func init() {
-	prometheus.MustRegister(syncPeersAttempt)
-	prometheus.MustRegister(syncQueueFullFailures)
-	prometheus.MustRegister(syncRequeue)
-}
-
-// NewMetricsCollector constructs a prometheus.Collector to collect metrics for
+// newMetricsCollector constructs a prometheus.Collector to collect metrics for
 // all present wg devices and correlate with user if possible
 func newMetricsCollector(devices func() ([]*wgtypes.Device, error)) prometheus.Collector {
 	// common labels for all metrics
@@ -182,7 +208,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func MetricsSyncPeerAttempt(device string, err error) {
+func metricsSyncPeerAttempt(device string, err error) {
 	s := "1"
 	if err != nil {
 		s = "0"
@@ -193,13 +219,13 @@ func MetricsSyncPeerAttempt(device string, err error) {
 	}).Inc()
 }
 
-func MetricsIncSyncQueueFullFailures(device string) {
+func metricsIncSyncQueueFullFailures(device string) {
 	syncQueueFullFailures.With(prometheus.Labels{
 		"device": device,
 	}).Inc()
 }
 
-func MetricsIncSyncRequeue(device string) {
+func metricsIncSyncRequeue(device string) {
 	syncRequeue.With(prometheus.Labels{
 		"device": device,
 	}).Inc()

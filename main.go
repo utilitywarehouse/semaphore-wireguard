@@ -9,10 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.zx2c4.com/wireguard/wgctrl"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/utilitywarehouse/semaphore-wireguard/kube"
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
@@ -107,7 +105,7 @@ func main() {
 		}
 	}()
 
-	makeMetricsCollector(wgMetricsClient, wgDeviceNames)
+	registerMetrics(wgMetricsClient, wgDeviceNames)
 	listenAndServe(runners)
 
 	// Stop runners before finishing
@@ -156,22 +154,6 @@ func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remote
 		rConf.ResyncPeriod.Duration,
 	)
 	return r, wgDeviceName, nil
-}
-
-func makeMetricsCollector(wgMetricsClient *wgctrl.Client, wgDeviceNames []string) {
-	mc := newMetricsCollector(func() ([]*wgtypes.Device, error) {
-		var devices []*wgtypes.Device
-		for _, name := range wgDeviceNames {
-			device, err := wgMetricsClient.Device(name)
-			if err != nil {
-				return nil, err
-			}
-			devices = append(devices, device)
-		}
-		return devices, nil
-	})
-	prometheus.MustRegister(mc)
-
 }
 
 func listenAndServe(runners []*Runner) {
