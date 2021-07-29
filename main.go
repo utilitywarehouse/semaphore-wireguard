@@ -88,10 +88,11 @@ func main() {
 		}
 		wgDeviceNames = append(wgDeviceNames, wgDeviceName)
 		runners = append(runners, r)
-		if err := r.Run(); err != nil {
-			log.Logger.Error("Failed to start runner", "err", err)
-			os.Exit(1)
-		}
+		go func() {
+			if err := r.Run(); err != nil {
+				log.Logger.Error("Failed to start runner", "err", err)
+			}
+		}()
 	}
 
 	wgMetricsClient, err := wgctrl.New()
