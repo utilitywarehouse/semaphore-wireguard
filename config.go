@@ -11,15 +11,18 @@ const (
 	defaultWGListenPort = 51820
 )
 
+// Duration is a helper to unmarshal time.Duration from json
 // https://stackoverflow.com/questions/48050945/how-to-unmarshal-json-into-durations/54571600#54571600
 type Duration struct {
 	time.Duration
 }
 
+// MarshalJSON calls json Marshall on Duration
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
 }
 
+// UnmarshalJSON provides handling of time.Duration when unmarshalling
 func (d *Duration) UnmarshalJSON(b []byte) error {
 	var v interface{}
 	if err := json.Unmarshal(b, &v); err != nil {
@@ -58,6 +61,7 @@ type remoteClusterConfig struct {
 	ResyncPeriod      Duration `json:"resyncPeriod"`
 }
 
+// Config holds the application configuration
 type Config struct {
 	Local   localClusterConfig     `json:"local"`
 	Remotes []*remoteClusterConfig `json:"remotes"`
