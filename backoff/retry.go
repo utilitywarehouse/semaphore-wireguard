@@ -6,7 +6,7 @@ import (
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
 )
 
-type Operation func() error
+type operation func() error
 
 const (
 	defaultBackoffJitter = true
@@ -14,7 +14,8 @@ const (
 	defaultBackoffMax    = 1 * time.Minute
 )
 
-func RetryWithDefaultBackoff(op Operation, description string) {
+// Retry will use the default backoff values to retry the passed operation
+func Retry(op operation, description string) {
 	b := &Backoff{
 		Jitter: defaultBackoffJitter,
 		Min:    defaultBackoffMin,
@@ -23,7 +24,9 @@ func RetryWithDefaultBackoff(op Operation, description string) {
 	RetryWithBackoff(op, b, description)
 }
 
-func RetryWithBackoff(op Operation, b *Backoff, description string) {
+// RetryWithBackoff will retry the passed function (operation) using the given
+// backoff
+func RetryWithBackoff(op operation, b *Backoff, description string) {
 	b.Reset()
 	for {
 		err := op()

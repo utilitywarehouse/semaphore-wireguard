@@ -5,7 +5,7 @@ ENV CGO_ENABLED=0
 RUN \
   apk --no-cache add git upx \
   && go get -t ./... \
-  && go test -v \
+  && go test -v ./... \
   && go build -ldflags='-s -w' -o /semaphore-wireguard . \
   && upx /semaphore-wireguard
 

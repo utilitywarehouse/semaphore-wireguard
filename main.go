@@ -90,7 +90,7 @@ func main() {
 		wgDeviceNames = append(wgDeviceNames, wgDeviceName)
 		runners = append(runners, r)
 		go func() {
-			backoff.RetryWithDefaultBackoff(r.Run, "start runner")
+			backoff.Retry(r.Run, "start runner")
 		}()
 	}
 

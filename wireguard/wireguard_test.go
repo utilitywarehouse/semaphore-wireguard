@@ -11,28 +11,28 @@ var (
 
 func TestNewPeerConfig(t *testing.T) {
 	var err error
-	_, err = newPeerConfig("", "", "", nil)
+	_, err = NewPeerConfig("", "", "", nil)
 	if err == nil {
-		t.Errorf("newPeerConfig: empty publicKey should generate an error")
+		t.Errorf("NewPeerConfig: empty publicKey should generate an error")
 	}
-	_, err = newPeerConfig("foobar", "", "", nil)
+	_, err = NewPeerConfig("foobar", "", "", nil)
 	if err == nil {
-		t.Errorf("newPeerConfig: invalid publicKey should generate an error")
+		t.Errorf("NewPeerConfig: invalid publicKey should generate an error")
 	}
-	_, err = newPeerConfig(validPublicKey, "", "", []string{""})
+	_, err = NewPeerConfig(validPublicKey, "", "", []string{""})
 	if err == nil {
-		t.Errorf("newPeerConfig: invalid allowedIPs should generate an error")
+		t.Errorf("NewPeerConfig: invalid allowedIPs should generate an error")
 	}
-	_, err = newPeerConfig(validPublicKey, "foo", "", validAllowedIPs)
+	_, err = NewPeerConfig(validPublicKey, "foo", "", validAllowedIPs)
 	if err == nil {
-		t.Errorf("newPeerConfig: invalid presharedKey should generate an error")
+		t.Errorf("NewPeerConfig: invalid presharedKey should generate an error")
 	}
-	_, err = newPeerConfig(validPublicKey, validPublicKey, "foo", validAllowedIPs)
+	_, err = NewPeerConfig(validPublicKey, validPublicKey, "foo", validAllowedIPs)
 	if err == nil {
-		t.Errorf("newPeerConfig: invalid endpoint should generate an error")
+		t.Errorf("NewPeerConfig: invalid endpoint should generate an error")
 	}
-	_, err = newPeerConfig(validPublicKey, validPublicKey, "1.1.1.1:1111", validAllowedIPs)
+	_, err = NewPeerConfig(validPublicKey, validPublicKey, "1.1.1.1:1111", validAllowedIPs)
 	if err != nil {
-		t.Errorf("newPeerConfig: unexpected error: %v", err)
+		t.Errorf("NewPeerConfig: unexpected error: %v", err)
 	}
 }
