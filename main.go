@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.zx2c4.com/wireguard/wgctrl"
 
+	"github.com/utilitywarehouse/semaphore-wireguard/backoff"
 	"github.com/utilitywarehouse/semaphore-wireguard/kube"
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
 	"k8s.io/client-go/kubernetes"
@@ -89,9 +90,7 @@ func main() {
 		wgDeviceNames = append(wgDeviceNames, wgDeviceName)
 		runners = append(runners, r)
 		go func() {
-			if err := r.Run(); err != nil {
-				log.Logger.Error("Failed to start runner", "err", err)
-			}
+			backoff.RetryWithDefaultBackoff(r.Run, "start runner")
 		}()
 	}
 
