@@ -1,4 +1,4 @@
-// Package sidecar includes this backoff function copied from: https://github.com/jpillora/backoff/blob/d80867952dff4e2fbfb4280ded4ff94d67790457/backoff.go
+// Package backoff includes this backoff function copied from: https://github.com/jpillora/backoff/blob/d80867952dff4e2fbfb4280ded4ff94d67790457/backoff.go
 package backoff
 
 import (
