@@ -34,7 +34,7 @@ var (
 			Name: "semaphore_wg_node_watcher_failures_total",
 			Help: "Number of times the node wathcer list/watch functions errored.",
 		},
-		[]string{"cluster", "type"},
+		[]string{"cluster", "verb"},
 	)
 )
 
@@ -65,8 +65,8 @@ func Register(wgMetricsClient *wgctrl.Client, wgDeviceNames, rClusterNames []str
 	// doesn't already have a value. This ensures that all possible counters
 	// start with a 0 value.
 	for _, c := range rClusterNames {
-		for _, t := range []string{"get", "list", "create", "update", "patch", "watch", "delete"} {
-			nodeWatcherFailures.With(prometheus.Labels{"cluster": c, "type": t})
+		for _, v := range []string{"get", "list", "create", "update", "patch", "watch", "delete"} {
+			nodeWatcherFailures.With(prometheus.Labels{"cluster": c, "verb": v})
 		}
 	}
 
@@ -248,9 +248,9 @@ func IncSyncRequeue(device string) {
 	}).Inc()
 }
 
-func IncNodeWatcherFailures(c, t string) {
+func IncNodeWatcherFailures(c, v string) {
 	nodeWatcherFailures.With(prometheus.Labels{
 		"cluster": c,
-		"type":    t,
+		"verb":    v,
 	}).Inc()
 }
