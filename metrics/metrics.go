@@ -32,7 +32,7 @@ var (
 	nodeWatcherFailures = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "semaphore_wg_node_watcher_failures_total",
-			Help: "Number of times the node wathcer list/watch functions errored.",
+			Help: "Number of times the node watcher list/watch functions errored.",
 		},
 		[]string{"cluster", "verb"},
 	)
