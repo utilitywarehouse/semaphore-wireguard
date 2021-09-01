@@ -15,6 +15,7 @@ import (
 	"github.com/utilitywarehouse/semaphore-wireguard/backoff"
 	"github.com/utilitywarehouse/semaphore-wireguard/kube"
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/metrics"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -80,7 +81,7 @@ func main() {
 	}
 
 	var runners []*Runner
-	var wgDeviceNames []string
+	var wgDeviceNames, rClusterNames []string
 	for _, rConf := range config.Remotes {
 		r, wgDeviceName, err := makeRunner(homeClient, config.Local.Name, rConf)
 		if err != nil {
@@ -89,6 +90,7 @@ func main() {
 		}
 		wgDeviceNames = append(wgDeviceNames, wgDeviceName)
 		runners = append(runners, r)
+		rClusterNames = append(rClusterNames, rConf.Name)
 		go func() {
 			backoff.Retry(r.Run, "start runner")
 		}()
@@ -105,7 +107,7 @@ func main() {
 		}
 	}()
 
-	registerMetrics(wgMetricsClient, wgDeviceNames)
+	metrics.Register(wgMetricsClient, wgDeviceNames, rClusterNames)
 	listenAndServe(runners)
 
 	// Stop runners before finishing

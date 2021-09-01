@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,10 +29,17 @@ var (
 		},
 		[]string{"device"},
 	)
+	nodeWatcherFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "semaphore_wg_node_watcher_failures_total",
+			Help: "Number of times the node wathcer list/watch functions errored.",
+		},
+		[]string{"cluster", "type"},
+	)
 )
 
-// registerMetrics registers all the prometheus collectors for this package
-func registerMetrics(wgMetricsClient *wgctrl.Client, wgDeviceNames []string) {
+// Register registers all the prometheus collectors
+func Register(wgMetricsClient *wgctrl.Client, wgDeviceNames, rClusterNames []string) {
 	// Initialize counters with a value of 0
 	for _, d := range wgDeviceNames {
 		for _, s := range []string{"0", "1"} {
@@ -54,11 +61,21 @@ func registerMetrics(wgMetricsClient *wgctrl.Client, wgDeviceNames []string) {
 		return devices, nil
 	})
 
+	// Retrieving a Counter from a CounterVec will initialize it with a 0 value if it
+	// doesn't already have a value. This ensures that all possible counters
+	// start with a 0 value.
+	for _, c := range rClusterNames {
+		for _, t := range []string{"get", "list", "create", "update", "patch", "watch", "delete"} {
+			nodeWatcherFailures.With(prometheus.Labels{"cluster": c, "type": t})
+		}
+	}
+
 	prometheus.MustRegister(
 		mc,
 		syncPeersAttempt,
 		syncQueueFullFailures,
 		syncRequeue,
+		nodeWatcherFailures,
 	)
 }
 
@@ -208,7 +225,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func metricsSyncPeerAttempt(device string, err error) {
+func SyncPeerAttempt(device string, err error) {
 	s := "1"
 	if err != nil {
 		s = "0"
@@ -219,14 +236,21 @@ func metricsSyncPeerAttempt(device string, err error) {
 	}).Inc()
 }
 
-func metricsIncSyncQueueFullFailures(device string) {
+func IncSyncQueueFullFailures(device string) {
 	syncQueueFullFailures.With(prometheus.Labels{
 		"device": device,
 	}).Inc()
 }
 
-func metricsIncSyncRequeue(device string) {
+func IncSyncRequeue(device string) {
 	syncRequeue.With(prometheus.Labels{
 		"device": device,
+	}).Inc()
+}
+
+func IncNodeWatcherFailures(c, t string) {
+	nodeWatcherFailures.With(prometheus.Labels{
+		"cluster": c,
+		"type":    t,
 	}).Inc()
 }
