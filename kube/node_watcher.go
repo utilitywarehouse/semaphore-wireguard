@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/metrics"
 )
 
 // NodeEventHandler is the function to handle new events
@@ -22,6 +23,7 @@ type NodeEventHandler = func(eventType watch.EventType, old *v1.Node, new *v1.No
 type NodeWatcher struct {
 	ctx          context.Context
 	client       kubernetes.Interface
+	clusterName  string
 	resyncPeriod time.Duration
 	stopChannel  chan struct{}
 	store        cache.Store
@@ -32,10 +34,11 @@ type NodeWatcher struct {
 }
 
 // NewNodeWatcher returns a new node wathcer.
-func NewNodeWatcher(client kubernetes.Interface, resyncPeriod time.Duration, handler NodeEventHandler) *NodeWatcher {
+func NewNodeWatcher(client kubernetes.Interface, resyncPeriod time.Duration, handler NodeEventHandler, clusterName string) *NodeWatcher {
 	return &NodeWatcher{
 		ctx:          context.Background(),
 		client:       client,
+		clusterName:  clusterName,
 		resyncPeriod: resyncPeriod,
 		stopChannel:  make(chan struct{}),
 		eventHandler: handler,
@@ -49,6 +52,7 @@ func (nw *NodeWatcher) Init() {
 			l, err := nw.client.CoreV1().Nodes().List(nw.ctx, options)
 			if err != nil {
 				log.Logger.Error("nw: list error", "err", err)
+				metrics.IncNodeWatcherFailures(nw.clusterName, "list")
 				nw.ListHealthy = false
 			} else {
 				nw.ListHealthy = true
@@ -59,6 +63,7 @@ func (nw *NodeWatcher) Init() {
 			w, err := nw.client.CoreV1().Nodes().Watch(nw.ctx, options)
 			if err != nil {
 				log.Logger.Error("nw: watch error", "err", err)
+				metrics.IncNodeWatcherFailures(nw.clusterName, "watch")
 				nw.WatchHealthy = false
 			} else {
 				nw.WatchHealthy = true

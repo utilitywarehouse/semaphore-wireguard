@@ -15,6 +15,7 @@ import (
 
 	"github.com/utilitywarehouse/semaphore-wireguard/kube"
 	"github.com/utilitywarehouse/semaphore-wireguard/log"
+	"github.com/utilitywarehouse/semaphore-wireguard/metrics"
 	"github.com/utilitywarehouse/semaphore-wireguard/wireguard"
 )
 
@@ -73,6 +74,7 @@ func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName,
 		watchClient,
 		resyncPeriod,
 		runner.nodeEventHandler,
+		remoteClusterName,
 	)
 	runner.nodeWatcher = nw
 	runner.nodeWatcher.Init()
@@ -123,7 +125,7 @@ func (r *Runner) syncLoop() {
 				continue
 			}
 			err := r.syncPeers()
-			metricsSyncPeerAttempt(r.device.Name(), err)
+			metrics.SyncPeerAttempt(r.device.Name(), err)
 			if err != nil {
 				log.Logger.Warn("Failed to sync wg peers", "err", err)
 				r.requeuePeersSync()
@@ -165,7 +167,7 @@ func (r *Runner) enqueuePeersSync() {
 		log.Logger.Debug("Sync task queued")
 	case <-time.After(5 * time.Second):
 		log.Logger.Error("Timed out trying to queue a sync action for netset, sync queue is full")
-		metricsIncSyncQueueFullFailures(r.device.Name())
+		metrics.IncSyncQueueFullFailures(r.device.Name())
 		r.requeuePeersSync()
 	}
 }
@@ -174,7 +176,7 @@ func (r *Runner) requeuePeersSync() {
 	log.Logger.Debug("Requeueing peers sync task")
 	go func() {
 		time.Sleep(1)
-		metricsIncSyncRequeue(r.device.Name())
+		metrics.IncSyncRequeue(r.device.Name())
 		r.enqueuePeersSync()
 	}()
 }
