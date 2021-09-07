@@ -29,8 +29,6 @@ type NodeWatcher struct {
 	store        cache.Store
 	controller   cache.Controller
 	eventHandler NodeEventHandler
-	ListHealthy  bool
-	WatchHealthy bool
 }
 
 // NewNodeWatcher returns a new node wathcer.
@@ -53,9 +51,6 @@ func (nw *NodeWatcher) Init() {
 			if err != nil {
 				log.Logger.Error("nw: list error", "err", err)
 				metrics.IncNodeWatcherFailures(nw.clusterName, "list")
-				nw.ListHealthy = false
-			} else {
-				nw.ListHealthy = true
 			}
 			return l, err
 		},
@@ -64,9 +59,6 @@ func (nw *NodeWatcher) Init() {
 			if err != nil {
 				log.Logger.Error("nw: watch error", "err", err)
 				metrics.IncNodeWatcherFailures(nw.clusterName, "watch")
-				nw.WatchHealthy = false
-			} else {
-				nw.WatchHealthy = true
 			}
 			return w, err
 		},
@@ -116,9 +108,4 @@ func (nw *NodeWatcher) List() ([]*v1.Node, error) {
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
-}
-
-// Healthy is true when both list and watch handlers are running without errors.
-func (nw *NodeWatcher) Healthy() bool {
-	return nw.ListHealthy && nw.WatchHealthy
 }

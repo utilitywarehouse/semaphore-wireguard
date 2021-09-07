@@ -162,8 +162,12 @@ func listenAndServe(runners []*Runner) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		// if we reach listenAndServe func the wg devices should have
+		// been intialised and running. One could use the ruuners'
+		// initialised flag for a liveness probe to kick the deployment
+		// after some time
 		for _, r := range runners {
-			if !r.Healthy() {
+			if !r.initialised {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}
