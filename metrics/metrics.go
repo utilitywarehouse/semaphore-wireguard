@@ -225,6 +225,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+// SyncPeerAttempt increases the counter for attempts to sync wg peers
 func SyncPeerAttempt(device string, err error) {
 	s := "1"
 	if err != nil {
@@ -236,18 +237,21 @@ func SyncPeerAttempt(device string, err error) {
 	}).Inc()
 }
 
+// IncSyncQueueFullFailures increases sync queue failures counter
 func IncSyncQueueFullFailures(device string) {
 	syncQueueFullFailures.With(prometheus.Labels{
 		"device": device,
 	}).Inc()
 }
 
+// IncSyncRequeue increases requeue counter
 func IncSyncRequeue(device string) {
 	syncRequeue.With(prometheus.Labels{
 		"device": device,
 	}).Inc()
 }
 
+// IncNodeWatcherFailures increases node watcher failures counter
 func IncNodeWatcherFailures(c, v string) {
 	nodeWatcherFailures.With(prometheus.Labels{
 		"cluster": c,

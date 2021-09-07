@@ -53,6 +53,7 @@ type Runner struct {
 	nodeWatcher *kube.NodeWatcher
 	peers       map[string]Peer
 	canSync     bool // Flag to allow updating wireguard peers only after initial node watcher sync
+	initialised bool // Flag to turn on after the successful initialisation of the runner to report healthy
 	annotations RunnerAnnotations
 	sync        chan struct{}
 	stop        chan struct{}
@@ -65,6 +66,7 @@ func newRunner(client, watchClient kubernetes.Interface, nodeName, wgDeviceName,
 		podSubnet:   podSubnet,
 		peers:       make(map[string]Peer),
 		canSync:     false,
+		initialised: false,
 		annotations: constructRunnerAnnotations(localClusterName, remoteClusterName),
 		sync:        make(chan struct{}),
 		stop:        make(chan struct{}),
@@ -100,16 +102,19 @@ func (r *Runner) Run() error {
 	if err := r.device.EnsureLinkUp(); err != nil {
 		return err
 	}
+	// Static route to the whole subnet cidr
+	if err := r.device.AddRouteToNet(r.podSubnet); err != nil {
+		return err
+	}
+	// At this point the runner should be considered successfully initialised
+	r.initialised = true
+
 	go r.nodeWatcher.Run()
 	// wait for node watcher to sync. TODO: atm dummy and could run forever
 	// if node cache fails to sync
 	stopCh := make(chan struct{})
 	if ok := cache.WaitForNamedCacheSync("nodeWatcher", stopCh, r.nodeWatcher.HasSynced); !ok {
 		return fmt.Errorf("failed to wait for nodes cache to sync")
-	}
-	// Static route to the whole subnet cidr
-	if err := r.device.AddRouteToNet(r.podSubnet); err != nil {
-		return err
 	}
 	r.canSync = true
 	r.enqueuePeersSync()
@@ -307,9 +312,4 @@ func (r *Runner) onPeerNodeDelete(node *v1.Node) {
 		return
 	}
 	r.enqueuePeersSync()
-}
-
-// Healthy is true if the node watcher is reporting healthy.
-func (r *Runner) Healthy() bool {
-	return r.nodeWatcher.Healthy()
 }
