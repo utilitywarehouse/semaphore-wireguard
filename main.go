@@ -142,6 +142,9 @@ func makeRunner(homeClient kubernetes.Interface, localName string, rConf *remote
 		return nil, "", fmt.Errorf("Cannot parse remote pod subnet: %s", err)
 	}
 	wgDeviceName := fmt.Sprintf(wgDeviceNamePattern, rConf.Name)
+	if err := verifyInterfaceName(wgDeviceName); err != nil {
+		return nil, "", fmt.Errorf("Interface name validation failed for %s : %s", wgDeviceName, err)
+	}
 	r := newRunner(
 		homeClient,
 		remoteClient,
