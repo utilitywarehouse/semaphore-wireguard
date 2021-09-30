@@ -1,19 +1,19 @@
 # semaphore-wireguard
 
-Borrows from [semaphore-service-mirror](https://github.com/utilitywarehouse/semaphore-service-mirror) and [wiresteward](https://github.com/utilitywarehouse/wiresteward).
+Borrows from
+[semaphore-service-mirror](https://github.com/utilitywarehouse/semaphore-service-mirror)
+and [wiresteward](https://github.com/utilitywarehouse/wiresteward).
 
-It is an experimental wireguard peer manager that is meant to run as a
-kubernetes daemonset and peer local cluster nodes with a remote cluster's nodes
-that also run semaphore-wireguard.
+An experimental WireGuard peer manager meant to run as a Kubernetes DaemonSet
+that peers local and remote cluster nodes in a full mesh.
 
-It creates a single wireguard interface per remote cluster on the host it is
-running and add all the remote wireguard peers it can discover, thus node to
-node connectivity is needed between clusters. All routing is done using the
-wireguard interface and a single route created on the host for the whole remote
-pod subnet. It does not clean up network configuration on teardown, so restarts
-can go unnoticed but syncs on startup.
+Each node has a WireGuard interface per remote cluster with all remote
+cluster's peers on it. Routing is done using the WireGuard interface and a
+single route created on the host for the whole remote Pod subnet. It does not
+clean up network configuration on teardown, so restarts can go unnoticed but
+devices are synced on startup.
 
-# Usage
+## Usage
 
 ```
 Usage of ./semaphore-wireguard:
@@ -29,7 +29,7 @@ Usage of ./semaphore-wireguard:
         Path to store and look for wg private key (default "/var/lib/semaphore-wireguard")
 ```
 
-# Limitations
+## Limitations
 
 Semaphore-wireguard is developed against Kubernetes clusters which use Calico
 CNI and thus relies on a few Calico concepts in order to function. Moreover,
@@ -45,46 +45,50 @@ result, this is tested to work using the `host-local` IPAM with Calico:
 which will make sure that pods scheduled in a node will be allocated IP
 addresses from the value stored in the node's `PodCIDR`.
 
-# Config
+## Config
 
 A json config is expected to define all the needed information regarding the
 local and the remote clusters that semaphore-wireguard operates on.
 
-## Local
-- name: the name of the local cluster. This will be used by the controller to
-  look for WireGuard configuration in remote nodes' annotations, based on the
-  pattern: <name>.wireguard.semaphore.uw.io.
+### Local
 
-## Remotes
-Is a list of remote clusters that may define the following:
-- name: The name of the remote cluster. This will be used when creating the
-  local wireguard interfaces (wireguard.<name>) and annotations to expose the
+- `name` the name of the local cluster. This will be used by the controller to
+  look for WireGuard configuration in remote nodes' annotations, with the
+  following pattern: `<name>.wireguard.semaphore.uw.io`.
+
+### Remotes
+
+List of remote clusters that may define the following:
+
+- `name` The name of the remote cluster. This will be used when creating the
+  local WireGuard interfaces (`wireguard.<name>`) and annotations to expose the
   needed configuration for remote clusters controllers.
 
-- remoteAPIURL: The kube apiserver url for the remote cluster.
+- `remoteAPIURL` The kube apiserver URI for the remote cluster.
 
-- remoteCAURL: A public endpoint to fetch the remote clusters CA.
+- `remoteCAURL` Endpoint to fetch the remote cluster's CA.
 
-- remoteSATokenPath: Path to the service account token that would allow watching
+- `remoteSATokenPath` Path to the ServiceAccount token that would allow watching
   the remote cluster's nodes.
 
-- kubeConfigPath: The path to a kube config file. This is an alternative for the
+- `kubeConfigPath` Path to a kube config file. This is an alternative for the
   3 above configuration options.
 
-- podSubnet: The cluster's pod subnet. Will be used to configure a static route
+- `podSubnet` The cluster's Pod subnet. Will be used to configure a static route
   to the subnet via the created wg interface. Pod subnets should be unique
   across the configuration, so that routes to different clusters pods do not
   overlap. As a result, clusters which use the same subnet for pods cannot be
   paired.
 
-- wgDeviceMTU: MTU for the created wireguard interface.
+- `wgDeviceMTU` MTU for the created WireGuard interface.
 
-- wgListenPort: WG listen port.
+- `wgListenPort` WG listen port, remote cluster nodes should be able to reach
+  this.
 
-- resyncPeriod: Kubernetes watcher resync period. It should yield update events
+- `resyncPeriod` Kubernetes watcher resync period. It should yield update events
   for everything that is stored in the cache. Default `0` value disables it.
 
-## Cluster Naming Consistency
+### Cluster Naming Consistency
 
 Cluster names should be unique and consistent across configuration of different
 deployments that live in different clusters. For example, if we pick `cluster1`
@@ -92,7 +96,7 @@ as our local cluster name for a particular deployment, the same name should be
 set as the remote cluster name in other deployments that will try to pair with
 the local cluster.
 
-## Cluster Names Length
+### Cluster Names Length
 
 We are using the configured cluster names to construct the respective WireGuard
 interfaces on the host, prefixing names with `wireguard.`. Because there is a
@@ -100,7 +104,7 @@ limit on how many chars length the interfaces can be, our prefix allows the
 user to define cluster names with up to 6 characters, otherwise a validation
 [error](/utils.go#L9-L11) will be raised.
 
-## Example
+### Example
 
 Cluster1 (`c1`) configuration:
 
@@ -182,6 +186,6 @@ each cluster. One can start with wide policies that would allow the full remote
 subnet to their local pods, although we recommend trying our policy
 [operator](https://github.com/utilitywarehouse/semaphore-policy).
 
-# Deployment
+## Deployment
 
 See example kube manifests to deploy under [example dir](./deploy/exmple/).
