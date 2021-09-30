@@ -128,6 +128,44 @@ Cluster2 (`c2`) configuration:
 }
 ```
 
+## Calico IPPools
+
+In order for calico to accept traffic to/from remote pod subnets we need to
+define Calico IPPools for all the subnets we want to allow. In the above
+example, each cluster will need a local definition of the remote cluster's
+IP address pool. So in `c1` we need to define the following:
+```
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: c2-pods
+spec:
+  cidr: 10.4.0.0/16
+  ipipMode: CrossSubnet
+  disabled: true
+```
+and the relevant definition in `c2`:
+```
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: c1-pods
+spec:
+  cidr: 10.2.0.0/16
+  ipipMode: CrossSubnet
+  disabled: true
+```
+
+Beware that `disabled: true` is necessary here, in order for Calico to avoid
+giving local pods IP addresses from the pool defined for remote workloads.
+
+## Network Policies
+
+Pod to pod communication should still be subject to network policies deployed on
+each cluster. One can start with wide policies that would allow the full remote
+subnet to their local pods, although we recommend trying our policy
+[operator](https://github.com/utilitywarehouse/semaphore-policy).
+
 # Deployment
 
 See example kube manifests to deploy under [example dir](./deploy/exmple/).
