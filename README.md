@@ -13,7 +13,7 @@ wireguard interface and a single route created on the host for the whole remote
 pod subnet. It does not clean up network configuration on teardown, so restarts
 can go unnoticed but syncs on startup.
 
-### Usage
+# Usage
 
 ```
 Usage of ./semaphore-wireguard:
@@ -28,6 +28,22 @@ Usage of ./semaphore-wireguard:
   -wg-key-path string
         Path to store and look for wg private key (default "/var/lib/semaphore-wireguard")
 ```
+
+# Limitations
+
+Semaphore-wireguard is developed against Kubernetes clusters which use Calico
+CNI and thus relies on a few Calico concepts in order to function. Moreover,
+the daemonset pods read the `PodCIDR` field from Kubernetes Node resources in
+order to determine the allowed IPs via each WireGuard interface created. As a
+result, this is tested to work using the `host-local` IPAM with Calico:
+```
+            "ipam": {
+              "type": "host-local",
+              "subnet": "usePodCidr"
+            },
+```
+which will make sure that pods scheduled in a node will be allocated IP
+addresses from the value stored in the node's `PodCIDR`.
 
 # Config
 
