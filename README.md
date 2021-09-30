@@ -76,21 +76,29 @@ as our local cluster name for a particular deployment, the same name should be
 set as the remote cluster name in other deployments that will try to pair with
 the local cluster.
 
+## Cluster Names Length
+
+We are using the configured cluster names to construct the respective WireGuard
+interfaces on the host, prefixing names with `wireguard.`. Because there is a
+limit on how many chars length the interfaces can be, our prefix allows the
+user to define cluster names with up to 6 characters, otherwise a validation
+[error](/utils.go#L9-L11) will be raised.
+
 ## Example
 
-`cluster1` configuration:
+Cluster1 (`c1`) configuration:
 
 ```
 {
   "local": {
-    "name": "cluster1"
+    "name": "c1"
   },
   "remotes": [
     {
-      "name": "cluster2",
-      "remoteAPIURL": "https://lb.cluster2.k8s.uw.systems",
-      "remoteCAURL": "https://kube-ca-cert.cluster2.uw.systems",
-      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/cluster2/token",
+      "name": "c2",
+      "remoteAPIURL": "https://lb.c2.k8s.uw.systems",
+      "remoteCAURL": "https://kube-ca-cert.c2.uw.systems",
+      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/c2/token",
       "podSubnet": "10.4.0.0/16",
       "wgDeviceMTU": 1380,
       "wgListenPort": 51821
@@ -99,19 +107,19 @@ the local cluster.
 }
 ```
 
-`cluster2` configuration:
+Cluster2 (`c2`) configuration:
 
 ```
 {
   "local": {
-    "name": "cluster2"
+    "name": "c2"
   },
   "remotes": [
     {
-      "name": "cluster1",
-      "remoteAPIURL": "https://lb.cluster1.k8s.uw.systems",
-      "remoteCAURL": "https://kube-ca-cert.cluster1.uw.systems",
-      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/cluster1/token",
+      "name": "c1",
+      "remoteAPIURL": "https://lb.c1.k8s.uw.systems",
+      "remoteCAURL": "https://kube-ca-cert.c1.uw.systems",
+      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/c1/token",
       "podSubnet": "10.2.0.0/16",
       "wgDeviceMTU": 1380,
       "wgListenPort": 51821

@@ -11,6 +11,8 @@ var (
 	ifaceNameContainsSlashErr = fmt.Errorf("Interface name cannot contain '/' character")
 )
 
+// verifyInterfaceName check for a valid interface name based on:
+// https://unix.stackexchange.com/questions/451368/allowed-chars-in-linux-network-interface-names
 func verifyInterfaceName(name string) error {
 	if len(name) == 0 || len(name) > 16 {
 		return ifaceNameTooLongErr

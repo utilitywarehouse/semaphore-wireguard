@@ -1,13 +1,13 @@
 {
   "local": {
-    "name": "cluster1"
+    "name": "c1"
   },
   "remotes": [
     {
-      "name": "cluster2",
-      "remoteAPIURL": "https://lb.cluster2.k8s.uw.systems",
-      "remoteCAURL": "https://kube-ca-cert.cluster2.uw.systems",
-      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/cluster2/token",
+      "name": "c2",
+      "remoteAPIURL": "https://lb.c2.k8s.uw.systems",
+      "remoteCAURL": "https://kube-ca-cert.c2.uw.systems",
+      "remoteSATokenPath": "/etc/semaphore-wireguard/tokens/c2/token",
       "podSubnet": "10.2.0.0/16",
       "wgListenPort": 51821
     }
