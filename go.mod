@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/go-hclog v1.2.0
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
 	github.com/prometheus/client_golang v1.12.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/vishvananda/netlink v1.1.1-0.20200802231818-98629f7ffc4b
 	golang.zx2c4.com/wireguard v0.0.0-20220318042302-193cf8d6a5d6
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220324164955-056925b7df31
