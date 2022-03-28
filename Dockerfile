@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine AS build
+FROM golang:1.18-alpine AS build
 WORKDIR /go/src/github.com/utilitywarehouse/semaphore-wireguard
 COPY . /go/src/github.com/utilitywarehouse/semaphore-wireguard
 ENV CGO_ENABLED=0
