@@ -33,7 +33,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       - name: Login to Quay.io Container Registry
         if: github.actor != 'dependabot[bot]'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: quay.io
           username: utilitywarehouse+drone_ci
