@@ -12,7 +12,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220324164955-056925b7df31
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
-	k8s.io/client-go v0.24.1
+	k8s.io/client-go v0.24.2
 )
 
 require (
