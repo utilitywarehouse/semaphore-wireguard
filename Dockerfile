@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine AS build
+FROM golang:1.21-alpine AS build
 WORKDIR /go/src/github.com/utilitywarehouse/semaphore-wireguard
 COPY . /go/src/github.com/utilitywarehouse/semaphore-wireguard
 ENV CGO_ENABLED=0
@@ -9,6 +9,6 @@ RUN \
     && go build -ldflags='-s -w' -o /semaphore-wireguard . \
     && upx /semaphore-wireguard
 
-FROM alpine:3.17
+FROM alpine:3.18
 COPY --from=build /semaphore-wireguard /semaphore-wireguard
 ENTRYPOINT [ "/semaphore-wireguard" ]
