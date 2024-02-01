@@ -10,7 +10,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	golang.zx2c4.com/wireguard v0.0.0-20231022001213-2e0774f246fb
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	k8s.io/api v0.29.0
+	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
 	k8s.io/client-go v0.29.0
 )
