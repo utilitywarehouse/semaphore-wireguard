@@ -7,7 +7,7 @@ toolchain go1.22.4
 require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.9.0
 	github.com/vishvananda/netlink v1.3.0
 	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173
